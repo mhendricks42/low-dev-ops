@@ -7,6 +7,11 @@ from tests.conftest import FIXTURES, INVALID, VALID, load_project
 # Each invalid fixture breaks exactly one rule; the error must name that rule.
 EXPECTED_ERRORS = {
     "bad-id": "String should match pattern",
+    "bad-custom-id": "String should match pattern",
+    "non-finite-number": "must be a finite number",
+    "reserved-input-name": "reserved module argument 'count'",
+    "reserved-ref-input": "reserved module argument 'depends_on'",
+    "unicode-digit-version": "String should match pattern",
     "bad-input-name": "String should match pattern",
     "bad-ref-output": "String should match pattern",
     "duplicate-id": "duplicate resource id 'rg1'",

@@ -8,6 +8,7 @@
           "type": "string"
         },
         "id": {
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
           "title": "Id",
           "type": "string"
         }
@@ -123,7 +124,7 @@
       "additionalProperties": false,
       "properties": {
         "catalogRef": {
-          "pattern": "^avm-[a-z0-9-]+@\\d+\\.\\d+\\.\\d+$",
+          "pattern": "^avm-[a-z0-9-]+@[0-9]+\\.[0-9]+\\.[0-9]+$",
           "title": "Catalogref",
           "type": "string"
         },

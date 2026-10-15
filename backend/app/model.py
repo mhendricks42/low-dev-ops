@@ -1,8 +1,10 @@
 """The internal model: one Project per project.json, the single source of truth (ADR-0002)."""
 
+import math
 from typing import Annotated, Literal
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     Field,
@@ -14,9 +16,30 @@ from pydantic import (
 from pydantic.alias_generators import to_camel
 
 ID_PATTERN = r"^[a-z][a-z0-9_]{0,62}$"
-CATALOG_REF_PATTERN = r"^avm-[a-z0-9-]+@\d+\.\d+\.\d+$"
+CATALOG_REF_PATTERN = r"^avm-[a-z0-9-]+@[0-9]+\.[0-9]+\.[0-9]+$"
 # Input and output names are written into HCL unquoted, so they must be plain identifiers.
 NAME_PATTERN = r"^[A-Za-z_][A-Za-z0-9_]{0,127}$"
+# Module meta-arguments: as inputs they would change what Terraform does, not set a module input.
+RESERVED_NAMES = frozenset(
+    {"source", "version", "count", "for_each", "depends_on", "providers", "lifecycle"}
+)
+
+
+def _not_reserved(name: str) -> str:
+    if name in RESERVED_NAMES:
+        raise ValueError(f"reserved module argument '{name}' cannot be an input")
+    return name
+
+
+def _finite(value: JsonValue) -> None:
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError("input values must be a finite number, not NaN or Infinity")
+    if isinstance(value, list):
+        for v in value:
+            _finite(v)
+    elif isinstance(value, dict):
+        for v in value.values():
+            _finite(v)
 
 
 class _Model(BaseModel):
@@ -43,7 +66,7 @@ class Naming(_Model):
 
 
 class Ref(_Model):
-    input: str = Field(pattern=NAME_PATTERN)
+    input: Annotated[str, Field(pattern=NAME_PATTERN), AfterValidator(_not_reserved)]
     to: str = Field(pattern=ID_PATTERN)
     output: str = Field(pattern=NAME_PATTERN)
 
@@ -57,9 +80,18 @@ class Resource(_Model):
     id: str = Field(pattern=ID_PATTERN)
     catalog_ref: str = Field(pattern=CATALOG_REF_PATTERN)
     parent: str | None = None
-    inputs: dict[Annotated[str, StringConstraints(pattern=NAME_PATTERN)], JsonValue] = {}
+    inputs: dict[
+        Annotated[str, StringConstraints(pattern=NAME_PATTERN), AfterValidator(_not_reserved)],
+        JsonValue,
+    ] = {}
     refs: list[Ref] = []
     layout: Layout | None = None
+
+    @field_validator("inputs")
+    @classmethod
+    def _finite_numbers(cls, inputs: dict[str, JsonValue]) -> dict[str, JsonValue]:
+        _finite(inputs)
+        return inputs
 
     @field_validator("refs")
     @classmethod
@@ -69,7 +101,7 @@ class Resource(_Model):
 
 
 class CustomHcl(_Model):
-    id: str
+    id: str = Field(pattern=ID_PATTERN)
     hcl: str
 
 
