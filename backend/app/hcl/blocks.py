@@ -22,21 +22,22 @@ class Chunk:
     line: int  # line of the block header (or first line, for comment-only chunks)
     type: str | None  # e.g. "module"; None for text that is not a block
     labels: list[str]
+    has_comment: bool  # mapping such a block would lose the comment
 
 
 def _trim(text: str) -> str:
     return re.sub(r"\A(?:[ \t]*\r?\n)+", "", text).rstrip()
 
 
-def _chunk(text: str, code_start: int | None, start_line: int) -> Chunk:
+def _chunk(text: str, code_start: int | None, start_line: int, has_comment: bool) -> Chunk:
     trimmed = _trim(text)
     offset = len(text) - len(text.lstrip()) if code_start is None else code_start
     line = start_line + text.count("\n", 0, offset)
     m = _HEADER.match(text, code_start) if code_start is not None else None
     if not m:
-        return Chunk(trimmed, line, None, [])
+        return Chunk(trimmed, line, None, [], has_comment)
     labels = [q if q is not None else bare for q, bare in _LABEL.findall(m.group(2))]
-    return Chunk(trimmed, line, m.group(1), labels)
+    return Chunk(trimmed, line, m.group(1), labels, has_comment)
 
 
 def split_blocks(text: str) -> list[Chunk]:
@@ -45,6 +46,7 @@ def split_blocks(text: str) -> list[Chunk]:
     i, line, n = 0, 1, len(text)
     start, start_line = 0, 1
     code_start: int | None = None  # first non-comment character of the current chunk
+    has_comment = False
 
     while i < n:
         c = text[i]
@@ -69,10 +71,12 @@ def split_blocks(text: str) -> list[Chunk]:
         if c == "\n":
             line += 1
         elif c == "#" or text.startswith("//", i):
+            has_comment = True
             i = text.find("\n", i)
             i = n if i == -1 else i
             continue
         elif text.startswith("/*", i):
+            has_comment = True
             end = text.find("*/", i + 2)
             if end == -1:
                 raise HclParseError("unterminated comment", line)
@@ -104,8 +108,11 @@ def split_blocks(text: str) -> list[Chunk]:
                     eol = n if eol == -1 else eol
                     rest = text[i + 1 : eol].strip()
                     end = eol if rest == "" or rest.startswith(("#", "//")) else i + 1
-                    chunks.append(_chunk(text[start:end], code_start - start, start_line))
+                    has_comment = has_comment or (end == eol and rest != "")
+                    chunk = _chunk(text[start:end], code_start - start, start_line, has_comment)
+                    chunks.append(chunk)
                     start, start_line, code_start, i = end, line, None, end
+                    has_comment = False
                     continue
         i += 1
 
@@ -113,5 +120,5 @@ def split_blocks(text: str) -> list[Chunk]:
         kind, opened = stack[0]
         raise HclParseError("unclosed '{'" if kind == "{" else "unterminated string", opened)
     if text[start:].strip():
-        chunks.append(_chunk(text[start:], None, start_line))
+        chunks.append(_chunk(text[start:], None, start_line, True))
     return chunks
