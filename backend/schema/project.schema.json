@@ -1,0 +1,296 @@
+{
+  "$defs": {
+    "CustomHcl": {
+      "additionalProperties": false,
+      "properties": {
+        "hcl": {
+          "title": "Hcl",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "hcl"
+      ],
+      "title": "CustomHcl",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "Layout": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "Layout",
+      "type": "object"
+    },
+    "Meta": {
+      "additionalProperties": false,
+      "properties": {
+        "created": {
+          "title": "Created",
+          "type": "string"
+        },
+        "lowdevopsVersion": {
+          "title": "Lowdevopsversion",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "created",
+        "lowdevopsVersion"
+      ],
+      "title": "Meta",
+      "type": "object"
+    },
+    "Naming": {
+      "additionalProperties": false,
+      "properties": {
+        "env": {
+          "title": "Env",
+          "type": "string"
+        },
+        "pattern": {
+          "title": "Pattern",
+          "type": "string"
+        },
+        "region": {
+          "title": "Region",
+          "type": "string"
+        },
+        "workload": {
+          "title": "Workload",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workload",
+        "env",
+        "region",
+        "pattern"
+      ],
+      "title": "Naming",
+      "type": "object"
+    },
+    "Ref": {
+      "additionalProperties": false,
+      "properties": {
+        "input": {
+          "title": "Input",
+          "type": "string"
+        },
+        "output": {
+          "title": "Output",
+          "type": "string"
+        },
+        "to": {
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "title": "To",
+          "type": "string"
+        }
+      },
+      "required": [
+        "input",
+        "to",
+        "output"
+      ],
+      "title": "Ref",
+      "type": "object"
+    },
+    "Resource": {
+      "additionalProperties": false,
+      "properties": {
+        "catalogRef": {
+          "pattern": "^avm-[a-z0-9-]+@\\d+\\.\\d+\\.\\d+$",
+          "title": "Catalogref",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "inputs": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "default": {},
+          "title": "Inputs",
+          "type": "object"
+        },
+        "layout": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Layout"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent"
+        },
+        "refs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "title": "Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "catalogRef"
+      ],
+      "title": "Resource",
+      "type": "object"
+    },
+    "Subscription": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "location": {
+          "title": "Location",
+          "type": "string"
+        },
+        "tenantId": {
+          "title": "Tenantid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "tenantId",
+        "location"
+      ],
+      "title": "Subscription",
+      "type": "object"
+    },
+    "Waiver": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "title": "At",
+          "type": "string"
+        },
+        "by": {
+          "title": "By",
+          "type": "string"
+        },
+        "findingId": {
+          "title": "Findingid",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "resource": {
+          "title": "Resource",
+          "type": "string"
+        }
+      },
+      "required": [
+        "findingId",
+        "resource",
+        "reason",
+        "by",
+        "at"
+      ],
+      "title": "Waiver",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "customHcl": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CustomHcl"
+      },
+      "title": "Customhcl",
+      "type": "array"
+    },
+    "meta": {
+      "$ref": "#/$defs/Meta"
+    },
+    "naming": {
+      "$ref": "#/$defs/Naming"
+    },
+    "resources": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Resource"
+      },
+      "title": "Resources",
+      "type": "array"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "subscription": {
+      "$ref": "#/$defs/Subscription"
+    },
+    "tags": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {},
+      "title": "Tags",
+      "type": "object"
+    },
+    "waivers": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Waiver"
+      },
+      "title": "Waivers",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "meta",
+    "subscription",
+    "naming"
+  ],
+  "title": "Project",
+  "type": "object"
+}

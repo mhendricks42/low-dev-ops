@@ -2,7 +2,7 @@
 BE := cd backend &&
 FE := cd frontend &&
 
-.PHONY: help install lint typecheck test check e2e dev fmt
+.PHONY: help install lint typecheck test check e2e dev fmt schema
 
 help: ## Show targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -35,3 +35,6 @@ dev: ## API on :8000 and UI on :5173, both bound to 127.0.0.1
 fmt: ## Auto-fix formatting and lint
 	$(BE) uv run ruff format . && uv run ruff check --fix .
 	$(FE) npm run format
+
+schema: ## Regenerate backend/schema/project.schema.json from the model
+	$(BE) mkdir -p schema && uv run python -m app.schema > schema/project.schema.json
