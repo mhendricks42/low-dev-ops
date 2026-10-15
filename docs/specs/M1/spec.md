@@ -53,6 +53,8 @@ Sections are separated by one blank line, and the file ends with exactly one `\n
    - its source matches `^Azure/(avm-[a-z0-9-]+)/azurerm$` with an exact semver `version`
    - its label matches the id pattern
    - every attribute is either a literal (string, number, bool, null, or a list or object of literals) or a bare `module.<id>.<output>` reference to another mapped resource
+   - heredocs and expression object keys don't count as literals
+   - the block has no comment inside it, directly above it or trailing it, so a comment is never lost
 4. **Every other block becomes a `CustomHcl` entry with its source text kept byte for byte**: `resource`, `locals`, `data`, `output`, comments between blocks, and modules with expressions, interpolation, functions, `var.` or `count`. Ids are reused from `previous` when the text matches, and otherwise numbered `custom_<n>`.
 5. Fields HCL doesn't carry (`meta`, `subscription`, `naming`, `tags`, `waivers`, and each resource's `parent` and `layout`, matched by id) come from `previous`. Resources not in `previous` get `parent=None` and `layout=None`.
 6. On a syntax error, it raises and never returns a partial model (ARCHITECTURE sync rule 3).
