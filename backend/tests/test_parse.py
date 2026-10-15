@@ -78,12 +78,24 @@ def test_syntax_error_raises_with_line_and_leaves_previous_unchanged() -> None:
         "# about rg1\n" + RG,  # comment above would be lost
         RG.replace("}", "  lifecycle {\n    prevent_destroy = true\n  }\n}"),  # nested block
         RG.replace('"rg-a"', "module.rg9.name"),  # ref to unknown module
+        RG.replace('"rg-a"', "<<EOT\nrg-a\nEOT"),  # heredoc
+        RG.replace('"rg-a"', "<<-EOT\n    rg-a\n  EOT"),  # indented heredoc
+        RG.replace('name     = "rg-a"', 'name     = "rg-a"\n  tags     = { (var.k) = 1 }'),
+        RG.replace('name     = "rg-a"', 'name     = "rg-a"\n  tags     = { var.k = 1 }'),
     ],
 )
 def test_unmappable_module_becomes_custom(block: str) -> None:
     parsed = parse(hcl(block), load_project("rg"))
     assert parsed.resources == []
     assert custom_texts(parsed) == [block]
+
+
+def test_quoted_and_dashed_object_keys_are_literal() -> None:
+    block = RG.replace(
+        'name     = "rg-a"', 'name     = "rg-a"\n  tags     = { "a b" = "x", b-c = "y" }'
+    )
+    tags = parse(hcl(block), load_project("rg")).resources[0].inputs["tags"]
+    assert tags == {"a b": "x", "b-c": "y"}
 
 
 def test_ref_to_a_demoted_module_demotes_the_referrer() -> None:

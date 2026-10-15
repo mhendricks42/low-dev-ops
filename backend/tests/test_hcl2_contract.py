@@ -31,6 +31,20 @@ def test_value_representation() -> None:
     assert body["__is_block__"] is True
 
 
+@pytest.mark.parametrize(
+    ("src", "value"),
+    [
+        ("a = <<EOT\nhi\nEOT\n", '"<<EOT\nhi\nEOT"'),  # heredoc: quoted, with a raw newline
+        ("a = { (var.x) = 1 }\n", {"${(var.x)}": 1}),  # expression key
+        ("a = { var.x = 1 }\n", {"${var.x}": 1}),
+        ('a = { "q" = 1 }\n', {'"q"': 1}),
+        ("a = { b-c = 1 }\n", {"b-c": 1}),
+    ],
+)
+def test_heredoc_and_object_key_representation(src: str, value: object) -> None:
+    assert hcl2.loads(src)["a"] == value
+
+
 def test_syntax_error_has_line() -> None:
     with pytest.raises(Exception) as err:
         hcl2.loads('module "x" {\n  a = \n}\n')

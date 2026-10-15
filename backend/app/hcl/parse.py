@@ -16,6 +16,7 @@ _HEADER_BLOCKS = set(HEADER.split("\n\n"))
 _SOURCE = re.compile(r"^Azure/(avm-[a-z0-9-]+)/azurerm$")
 _VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 _REF = re.compile(r"^\$\{module\.([a-z][a-z0-9_]{0,62})\.([A-Za-z_][A-Za-z0-9_]{0,127})\}$")
+_BARE_KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
 _ESCAPES = {"n": "\n", "r": "\r", "t": "\t", '"': '"', "\\": "\\"}
 _MODULE_KEYWORDS = {"source", "version", "count", "for_each", "depends_on", "providers"}
 
@@ -58,18 +59,28 @@ def _unquote(raw: str) -> str:
     return "".join(out)
 
 
+def _key(key: str) -> str:
+    """Object keys: quoted strings or bare identifiers; anything else is an expression."""
+    if key.startswith('"'):
+        return str(_literal(key))
+    if _BARE_KEY.match(key):
+        return key
+    raise _Unmappable
+
+
 def _literal(value: Any) -> JsonValue:
     """Convert a python-hcl2 value to JSON, raising if it is not a plain literal."""
     if value is None or isinstance(value, bool | int | float):
         return value
     if isinstance(value, str):
-        if len(value) >= 2 and value[0] == value[-1] == '"':
+        # A quoted literal never holds a raw newline; python-hcl2 renders heredocs that way.
+        if len(value) >= 2 and value[0] == value[-1] == '"' and "\n" not in value:
             return _unquote(value)
         raise _Unmappable
     if isinstance(value, list):
         return [_literal(v) for v in value]
     if isinstance(value, dict) and "__is_block__" not in value:
-        return {(_unquote(k) if k.startswith('"') else k): _literal(v) for k, v in value.items()}
+        return {_key(k): _literal(v) for k, v in value.items()}
     raise _Unmappable
 
 
