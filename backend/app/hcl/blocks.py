@@ -92,8 +92,8 @@ def split_blocks(text: str) -> list[Chunk]:
             if c == '"':
                 stack.append(('"', line))
             elif (m := _HEREDOC.match(text, i)) is not None:
-                # python-hcl2 allows any whitespace except a line break before the marker.
-                close = re.compile(rf"^[^\S\r\n]*{re.escape(m.group(1))}\r?$", re.M)
+                # python-hcl2 allows any whitespace but "\n" (so "\r" too) before the marker.
+                close = re.compile(rf"^[^\S\n]*{re.escape(m.group(1))}\r?$", re.M)
                 closing = close.search(text, m.end())
                 if closing is None:
                     raise HclParseError("unterminated heredoc", line)

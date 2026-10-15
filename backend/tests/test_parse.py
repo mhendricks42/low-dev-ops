@@ -1,5 +1,6 @@
 import time
 
+import hcl2
 import pytest
 
 from app.hcl import HclParseError
@@ -185,7 +186,7 @@ def test_splitter_disagreeing_with_hcl2_raises(monkeypatch: pytest.MonkeyPatch) 
         parse(hcl(RG), load_project("rg"))
 
 
-@pytest.mark.parametrize("space", ["\v", "\f", "\x1c", "\u00a0", "\u3000"])
+@pytest.mark.parametrize("space", ["\r", "\v", "\f", "\x1c", "\x85", "\u00a0", "\u3000"])
 def test_unusual_whitespace_before_heredoc_marker_cannot_swap_modules(space: str) -> None:
     benign = RG.replace('module "rg1"', 'module "evil"')
     pwn = benign.replace('"rg-a"', '"pwn"')
@@ -206,3 +207,22 @@ def test_unusual_whitespace_before_heredoc_marker_cannot_swap_modules(space: str
 def test_bare_block_labels_are_accepted() -> None:
     block = 'locals {\n  a = { x = 1 }\n}\n\nvariable env {\n  default = "dev"\n}'
     assert custom_texts(parse(hcl(block), load_project("rg"))) == block.split("\n\n")
+
+
+@pytest.mark.parametrize("space", ["\r", "\v", "\u3000"])
+def test_identical_smuggled_module_is_refused(space: str) -> None:
+    # Both copies are byte-identical, so a per-module content check alone would accept them.
+    evil = RG.replace('module "rg1"', 'module "evil"')
+    text = hcl(
+        f"locals {{\n  a = <<EOT\n{space}EOT\n}}",
+        evil,
+        "locals {\n  b = <<FOO\nEOT\n}",
+        evil,
+        "locals {\nFOO\n}",
+    )
+    original = hcl2.loads(text)
+    try:
+        parsed = parse(text, load_project("rg"))
+    except HclParseError:
+        return
+    assert hcl2.loads(generate(parsed)) == original  # whatever is kept must mean the same
