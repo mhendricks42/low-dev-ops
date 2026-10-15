@@ -1,0 +1,19 @@
+name: Feature request
+description: Suggest a change or a new catalog entry
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve, and for whom?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+  - type: textarea
+    id: scope
+    attributes:
+      label: Is it in scope?
+      description: Check docs/PRD.md (Out of scope) and docs/ROADMAP.md first.
