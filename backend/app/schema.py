@@ -1,4 +1,4 @@
-"""JSON Schema for project.json, generated from the Pydantic model. Run `make schema` after model changes."""
+"""JSON Schema for project.json, generated from the model. Run `make schema` after model changes."""
 
 import json
 from typing import Any
