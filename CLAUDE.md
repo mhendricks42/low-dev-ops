@@ -23,6 +23,7 @@ A local web app for designing, validating, planning and applying Azure infrastru
 | E2E (Playwright; starts API and UI) | `make e2e` |
 | Run the app (API :8000, UI :5173) | `make dev` |
 | Auto-format | `make fmt` |
+| Regenerate project.json schema | `make schema` |
 
 `make check` must exit 0 before you stop. The Stop hook enforces this.
 

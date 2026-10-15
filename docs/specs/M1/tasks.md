@@ -9,4 +9,4 @@ One Conventional Commit per task. Exit criteria from [ROADMAP](../../ROADMAP.md#
 - [x] T5 `feat(backend)`: top-level block splitter. Tests cover heredocs, comments and strings containing braces, plus error lines.
 - [x] T6 `feat(backend)`: parser mapping AVM modules and refs, inheriting fields from `previous`, with syntax errors raised and no partial model. Proves **exit criterion 3: round-trip** and **exit criterion 4: custom HCL survives**.
 - [x] T7 `ci`: the `terraform-validate` job (`fmt -check` + `init` + `validate` per fixture). Proves **exit criterion 5**.
-- [ ] T8 `docs`: backend/CLAUDE.md commands, with tasks.md ticked off.
+- [x] T8 `docs`: backend/CLAUDE.md commands, with tasks.md ticked off.
