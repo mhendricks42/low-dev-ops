@@ -1,6 +1,7 @@
 """HCL -> model. Blocks that map cleanly to AVM modules become resources; everything else is
 kept verbatim as custom HCL. On a syntax error nothing is returned (ARCHITECTURE sync rule 3)."""
 
+import json
 import re
 from collections import Counter, defaultdict
 from typing import Any
@@ -161,28 +162,32 @@ def _demote_dangling(mapped: dict[int, Resource]) -> None:
             queue += referrers[mapped.pop(i).id]
 
 
-def _block_keys(chunks: list[Chunk]) -> Counter[tuple[str, str | None]]:
-    return Counter((c.type, c.labels[0] if c.labels else None) for c in chunks if c.type)
+def _entries(tree: dict[str, Any]) -> Counter[str]:
+    """Every top-level entry python-hcl2 read, as a multiset; order and comments are ignored."""
+    return Counter(
+        json.dumps([kind, entry], sort_keys=True)
+        for kind, entries in tree.items()
+        if kind != "__comments__"
+        for entry in (entries if isinstance(entries, list) else [entries])
+    )
 
 
-def _hcl2_block_keys(tree: dict[str, Any]) -> Counter[tuple[str, str | None]]:
-    keys: Counter[tuple[str, str | None]] = Counter()
-    for kind, entries in tree.items():
-        if kind == "__comments__" or not isinstance(entries, list):
-            continue
-        for entry in entries:
-            names = [k for k in entry if k != "__is_block__"]
-            label = None
-            if len(names) == 1:
-                name = names[0]
-                body = entry[name]
-                # A label maps to a block body; an object value has no __is_block__ marker.
-                if name.startswith('"'):
-                    label = name[1:-1]
-                elif isinstance(body, dict) and body.get("__is_block__") is True:
-                    label = name
-            keys[(kind, label)] += 1
-    return keys
+def _check_split(tree: dict[str, Any], chunks: list[Chunk]) -> None:
+    """The chunks, read one by one, must mean exactly what the whole file means.
+
+    The splitter and python-hcl2 could otherwise disagree on where a heredoc ends, and a block
+    the splitter sees might be text inside a heredoc. Refuse to guess (ARCHITECTURE sync rule 3).
+    """
+    parts: Counter[str] = Counter()
+    for chunk in chunks:
+        try:
+            parts += _entries(hcl2.loads(chunk.text))
+        except Exception as e:
+            raise HclParseError(
+                "could not split the file into blocks unambiguously", chunk.line
+            ) from e
+    if parts != _entries(tree):
+        raise HclParseError("could not split the file into blocks unambiguously")
 
 
 def parse(hcl: str, previous: Project) -> Project:
@@ -192,9 +197,7 @@ def parse(hcl: str, previous: Project) -> Project:
     except Exception as e:  # python-hcl2 raises lark errors of several types
         raise HclParseError(str(e).splitlines()[0], getattr(e, "line", None)) from e
     all_chunks = split_blocks(hcl)
-    if _block_keys(all_chunks) != _hcl2_block_keys(tree):
-        # Never guess: a module the splitter sees might be text inside a heredoc, or vice versa.
-        raise HclParseError("could not split the file into blocks unambiguously")
+    _check_split(tree, all_chunks)
     chunks = [c for c in all_chunks if c.text not in _HEADER_BLOCKS]
 
     mapped: dict[int, Resource] = {}
@@ -211,15 +214,6 @@ def parse(hcl: str, previous: Project) -> Project:
             mapped[index] = resource
 
     _demote_dangling(mapped)
-
-    # Block counts can agree while contents differ (two opposite heredoc misreads cancel out),
-    # so every mapped module must also be exactly what python-hcl2 read from the whole file.
-    whole_file_modules = tree.get("module", [])
-    for i in mapped:
-        if hcl2.loads(chunks[i].text)["module"][0] not in whole_file_modules:
-            raise HclParseError(
-                "could not split the file into blocks unambiguously", chunks[i].line
-            )
 
     ids = {r.id for r in mapped.values()}
     old = {r.id: r for r in previous.resources}
