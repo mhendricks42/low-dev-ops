@@ -183,3 +183,26 @@ def test_splitter_disagreeing_with_hcl2_raises(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr("app.hcl.parse.split_blocks", lambda text: split_blocks(text)[:-1])
     with pytest.raises(HclParseError, match="unambiguously"):
         parse(hcl(RG), load_project("rg"))
+
+
+@pytest.mark.parametrize("space", ["\v", "\f", "\x1c", "\u00a0", "\u3000"])
+def test_unusual_whitespace_before_heredoc_marker_cannot_swap_modules(space: str) -> None:
+    benign = RG.replace('module "rg1"', 'module "evil"')
+    pwn = benign.replace('"rg-a"', '"pwn"')
+    text = hcl(
+        f"locals {{\n  a = <<EOT\n{space}EOT\n}}",
+        benign,
+        "locals {\n  b = <<FOO\nEOT\n}",
+        pwn,
+        "locals {\nFOO\n}",
+    )
+    try:
+        parsed = parse(text, load_project("rg"))
+    except HclParseError:
+        return
+    assert all(r.inputs.get("name") != "pwn" for r in parsed.resources)
+
+
+def test_bare_block_labels_are_accepted() -> None:
+    block = 'locals {\n  a = { x = 1 }\n}\n\nvariable env {\n  default = "dev"\n}'
+    assert custom_texts(parse(hcl(block), load_project("rg"))) == block.split("\n\n")

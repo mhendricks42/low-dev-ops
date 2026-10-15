@@ -37,7 +37,9 @@ def _chunk(text: str, code_start: int | None, start_line: int, has_comment: bool
     m = _HEADER.match(text, code_start) if code_start is not None else None
     if not m:
         return Chunk(trimmed, line, None, [], has_comment)
-    labels = [q if q is not None else bare for q, bare in _LABEL.findall(m.group(2))]
+    labels = [
+        x.group(1) if x.group(1) is not None else x.group(2) for x in _LABEL.finditer(m.group(2))
+    ]
     return Chunk(trimmed, line, m.group(1), labels, has_comment)
 
 
@@ -90,7 +92,8 @@ def split_blocks(text: str) -> list[Chunk]:
             if c == '"':
                 stack.append(('"', line))
             elif (m := _HEREDOC.match(text, i)) is not None:
-                close = re.compile(rf"^[ \t]*{re.escape(m.group(1))}\r?$", re.M)
+                # python-hcl2 allows any whitespace except a line break before the marker.
+                close = re.compile(rf"^[^\S\r\n]*{re.escape(m.group(1))}\r?$", re.M)
                 closing = close.search(text, m.end())
                 if closing is None:
                     raise HclParseError("unterminated heredoc", line)

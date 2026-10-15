@@ -172,8 +172,16 @@ def _hcl2_block_keys(tree: dict[str, Any]) -> Counter[tuple[str, str | None]]:
             continue
         for entry in entries:
             names = [k for k in entry if k != "__is_block__"]
-            label = names[0] if len(names) == 1 and names[0].startswith('"') else None
-            keys[(kind, label[1:-1] if label else None)] += 1
+            label = None
+            if len(names) == 1:
+                name = names[0]
+                body = entry[name]
+                # A label maps to a block body; an object value has no __is_block__ marker.
+                if name.startswith('"'):
+                    label = name[1:-1]
+                elif isinstance(body, dict) and body.get("__is_block__") is True:
+                    label = name
+            keys[(kind, label)] += 1
     return keys
 
 
@@ -203,6 +211,15 @@ def parse(hcl: str, previous: Project) -> Project:
             mapped[index] = resource
 
     _demote_dangling(mapped)
+
+    # Block counts can agree while contents differ (two opposite heredoc misreads cancel out),
+    # so every mapped module must also be exactly what python-hcl2 read from the whole file.
+    whole_file_modules = tree.get("module", [])
+    for i in mapped:
+        if hcl2.loads(chunks[i].text)["module"][0] not in whole_file_modules:
+            raise HclParseError(
+                "could not split the file into blocks unambiguously", chunks[i].line
+            )
 
     ids = {r.id for r in mapped.values()}
     old = {r.id: r for r in previous.resources}
