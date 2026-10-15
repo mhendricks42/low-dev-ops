@@ -56,6 +56,28 @@ jobs:
             frontend/test-results/
           if-no-files-found: ignore
 
+  terraform-validate:
+    name: terraform validate (fixtures)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: "1.16.6"
+          terraform_wrapper: false
+      # Generated output is snapshot-tested against these files, so validating them validates the generator.
+      - name: fmt, init and validate every fixture's main.tf
+        run: |
+          for dir in backend/tests/fixtures/valid/*/; do
+            echo "::group::$dir"
+            work=$(mktemp -d)
+            cp "$dir/main.tf" "$work/"
+            terraform -chdir="$work" fmt -check -diff
+            terraform -chdir="$work" init -backend=false -input=false -no-color
+            terraform -chdir="$work" validate -no-color
+            echo "::endgroup::"
+          done
+
   devcontainer:
     name: make check (dev container)
     runs-on: ubuntu-24.04
