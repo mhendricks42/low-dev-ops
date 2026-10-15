@@ -4,16 +4,16 @@ Node 22. Run commands from `frontend/`, or use the root `make` targets. The dev 
 
 ## Commands
 
-| What | Command |
-| --- | --- |
-| Install | `npm ci` |
-| Lint | `npm run lint` (eslint + prettier --check) |
-| Format | `npm run format` |
-| Typecheck | `npm run typecheck` |
-| Unit tests | `npm test` (vitest, jsdom) |
-| One test | `npx vitest run src/App.test.tsx` |
-| E2E | `npm run e2e` (Playwright; starts API and UI; writes `docs/specs/M0/hello.png`) |
-| Run | `npm run dev` |
+| What       | Command                                                                         |
+| ---------- | ------------------------------------------------------------------------------- |
+| Install    | `npm ci`                                                                        |
+| Lint       | `npm run lint` (eslint + prettier --check)                                      |
+| Format     | `npm run format`                                                                |
+| Typecheck  | `npm run typecheck`                                                             |
+| Unit tests | `npm test` (vitest, jsdom)                                                      |
+| One test   | `npx vitest run src/App.test.tsx`                                               |
+| E2E        | `npm run e2e` (Playwright; starts API and UI; writes `docs/specs/M0/hello.png`) |
+| Run        | `npm run dev`                                                                   |
 
 ## Rules
 
