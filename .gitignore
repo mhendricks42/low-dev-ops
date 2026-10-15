@@ -1,0 +1,25 @@
+# Python
+.venv/
+__pycache__/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+test-results/
+playwright-report/
+
+# Terraform: state, plans and vars never leave Azure / the local machine
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+
+# Local
+.env
+.claude/settings.local.json
