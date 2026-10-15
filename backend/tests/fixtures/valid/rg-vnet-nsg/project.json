@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "webapp-dev",
+    "created": "2026-10-15T00:00:00Z",
+    "lowdevopsVersion": "0.1.0"
+  },
+  "subscription": {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "tenantId": "11111111-1111-1111-1111-111111111111",
+    "location": "westeurope"
+  },
+  "naming": {
+    "workload": "webapp",
+    "env": "dev",
+    "region": "weu",
+    "pattern": "{type}-{workload}-{env}-{region}"
+  },
+  "tags": {
+    "env": "dev",
+    "owner": "platform-team"
+  },
+  "resources": [
+    {
+      "id": "rg1",
+      "catalogRef": "avm-res-resources-resourcegroup@0.4.0",
+      "parent": null,
+      "inputs": {
+        "enable_telemetry": false,
+        "location": "westeurope",
+        "name": "rg-webapp-dev-weu",
+        "tags": {
+          "env": "dev",
+          "owner": "platform-team"
+        }
+      },
+      "refs": [],
+      "layout": {
+        "x": 40,
+        "y": 40
+      }
+    },
+    {
+      "id": "vnet1",
+      "catalogRef": "avm-res-network-virtualnetwork@0.22.3",
+      "parent": "rg1",
+      "inputs": {
+        "address_space": [
+          "10.0.0.0/16"
+        ],
+        "enable_telemetry": false,
+        "location": "westeurope",
+        "name": "vnet-webapp-dev-weu"
+      },
+      "refs": [
+        {
+          "input": "parent_id",
+          "to": "rg1",
+          "output": "resource_id"
+        }
+      ],
+      "layout": {
+        "x": 80,
+        "y": 120
+      }
+    },
+    {
+      "id": "nsg1",
+      "catalogRef": "avm-res-network-networksecuritygroup@0.6.0",
+      "parent": "rg1",
+      "inputs": {
+        "enable_telemetry": false,
+        "location": "westeurope",
+        "name": "nsg-webapp-dev-weu",
+        "security_rules": {
+          "allow_https": {
+            "access": "Allow",
+            "destination_address_prefix": "*",
+            "destination_port_range": "443",
+            "direction": "Inbound",
+            "name": "allow-https",
+            "priority": 100,
+            "protocol": "Tcp",
+            "source_address_prefix": "Internet",
+            "source_port_range": "*"
+          }
+        }
+      },
+      "refs": [
+        {
+          "input": "parent_id",
+          "to": "rg1",
+          "output": "resource_id"
+        }
+      ],
+      "layout": null
+    }
+  ],
+  "customHcl": [],
+  "waivers": []
+}
