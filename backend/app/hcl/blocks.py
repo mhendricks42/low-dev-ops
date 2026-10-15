@@ -89,7 +89,7 @@ def split_blocks(text: str) -> list[Chunk]:
             if c == '"':
                 stack.append(('"', line))
             elif (m := _HEREDOC.match(text, i)) is not None:
-                close = re.compile(rf"^[ \t]*{re.escape(m.group(1))}[ \t]*\r?$", re.M)
+                close = re.compile(rf"^[ \t]*{re.escape(m.group(1))}\r?$", re.M)
                 closing = close.search(text, m.end())
                 if closing is None:
                     raise HclParseError("unterminated heredoc", line)

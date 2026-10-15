@@ -78,6 +78,8 @@ def test_syntax_error_raises_with_line_and_leaves_previous_unchanged() -> None:
         "# about rg1\n" + RG,  # comment above would be lost
         RG.replace("}", "  lifecycle {\n    prevent_destroy = true\n  }\n}"),  # nested block
         RG.replace('"rg-a"', "module.rg9.name"),  # ref to unknown module
+        RG.replace('name     = "rg-a"', 'name     = "rg-a"\n  name     = "rg-b"'),  # duplicate
+        RG.replace('"rg-a"', '"rg-a"\n  tags     = { a = 1, "a" = 2 }'),  # duplicate key
         RG.replace('"rg-a"', "<<EOT\nrg-a\nEOT"),  # heredoc
         RG.replace('"rg-a"', "<<-EOT\n    rg-a\n  EOT"),  # indented heredoc
         RG.replace('name     = "rg-a"', 'name     = "rg-a"\n  tags     = { (var.k) = 1 }'),
@@ -123,3 +125,24 @@ def test_custom_ids_are_reused_by_text_and_new_ones_numbered() -> None:
     text = generate(previous) + '\noutput "x" {\n  value = 1\n}\n'
     ids = [c.id for c in parse(text, previous).custom_hcl]
     assert ids == ["custom_1", "custom_2", "custom_3", "custom_4", "custom_5"]
+
+
+def test_heredoc_closing_marker_with_trailing_space_does_not_close_it() -> None:
+    # HCL keeps reading the heredoc past "EOT ", so this is one block, kept verbatim.
+    text = 'module "a" {\n  x = <<EOT\nEOT \n}\nmodule "b" {\nEOT\n}\n'
+    parsed = parse(text, load_project("rg"))
+    assert parsed.resources == []
+    assert custom_texts(parsed) == [text.rstrip()]
+
+
+def test_long_chain_of_dangling_refs_is_fast() -> None:
+    import time
+
+    blocks = [
+        RG.replace('module "rg1"', f'module "m{i}"').replace('"rg-a"', f"module.m{i - 1}.name")
+        for i in range(1, 800)
+    ]
+    start = time.perf_counter()
+    parsed = parse(hcl(*blocks), load_project("rg"))
+    assert parsed.resources == []  # m0 does not exist, so every module is demoted
+    assert time.perf_counter() - start < 3

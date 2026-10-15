@@ -2,23 +2,24 @@
 kept verbatim as custom HCL. On a syntax error nothing is returned (ARCHITECTURE sync rule 3)."""
 
 import re
+from collections import defaultdict
 from typing import Any
 
 import hcl2
+from lark import Token, Tree
 from pydantic import JsonValue, ValidationError
 
 from app.hcl import HclParseError
 from app.hcl.blocks import Chunk, split_blocks
 from app.hcl.generate import HEADER
-from app.model import ID_PATTERN, NAME_PATTERN, CustomHcl, Project, Ref, Resource
+from app.model import ID_PATTERN, NAME_PATTERN, RESERVED_NAMES, CustomHcl, Project, Ref, Resource
 
 _HEADER_BLOCKS = set(HEADER.split("\n\n"))
-_SOURCE = re.compile(r"^Azure/(avm-[a-z0-9-]+)/azurerm$")
-_VERSION = re.compile(r"^\d+\.\d+\.\d+$")
-_REF = re.compile(r"^\$\{module\.([a-z][a-z0-9_]{0,62})\.([A-Za-z_][A-Za-z0-9_]{0,127})\}$")
-_BARE_KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
+_SOURCE = re.compile(r"Azure/(avm-[a-z0-9-]+)/azurerm")
+_VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
+_REF = re.compile(r"\$\{module\.([a-z][a-z0-9_]{0,62})\.([A-Za-z_][A-Za-z0-9_]{0,127})\}")
+_BARE_KEY = re.compile(r"[A-Za-z_][A-Za-z0-9_-]*")
 _ESCAPES = {"n": "\n", "r": "\r", "t": "\t", '"': '"', "\\": "\\"}
-_MODULE_KEYWORDS = {"source", "version", "count", "for_each", "depends_on", "providers"}
 
 
 class _Unmappable(Exception):
@@ -63,7 +64,7 @@ def _key(key: str) -> str:
     """Object keys: quoted strings or bare identifiers; anything else is an expression."""
     if key.startswith('"'):
         return str(_literal(key))
-    if _BARE_KEY.match(key):
+    if _BARE_KEY.fullmatch(key):
         return key
     raise _Unmappable
 
@@ -84,31 +85,62 @@ def _literal(value: Any) -> JsonValue:
     raise _Unmappable
 
 
+def _name(node: Token | Tree[Token]) -> str:
+    """Text of an attribute name or object key, with quotes dropped so `a` and `"a"` match."""
+    if isinstance(node, Token):
+        return str(node)
+    return "".join(t for t in node.scan_values(lambda v: isinstance(v, Token)) if t != '"')
+
+
+def _has_duplicates(tree: Tree[Token]) -> bool:
+    """True if an attribute or object key repeats. python-hcl2 keeps only the last one."""
+    for node in tree.iter_subtrees():
+        kind = {"body": "attribute", "object": "object_elem"}.get(str(node.data))
+        if kind is None:
+            continue
+        names = [
+            _name(child.children[0])
+            for child in node.children
+            if isinstance(child, Tree) and child.data == kind
+        ]
+        if len(names) != len(set(names)):
+            return True
+    return False
+
+
 def _module(chunk: Chunk) -> Resource:
     """Map one `module` chunk to a Resource (without parent/layout), or raise _Unmappable."""
-    if chunk.has_comment or len(chunk.labels) != 1 or not re.match(ID_PATTERN, chunk.labels[0]):
+    if chunk.has_comment or len(chunk.labels) != 1 or not re.fullmatch(ID_PATTERN, chunk.labels[0]):
         raise _Unmappable
-    body: dict[str, Any] = hcl2.loads(chunk.text)["module"][0][f'"{chunk.labels[0]}"']
-    body.pop("__is_block__", None)
     try:
-        source = _SOURCE.match(_literal(body.pop("source")))  # type: ignore[arg-type]
+        # The whole file already parsed; a failure here means the splitter cut it differently.
+        if _has_duplicates(hcl2.parses_to_tree(chunk.text)):
+            raise _Unmappable
+        body: dict[str, Any] = hcl2.loads(chunk.text)["module"][0][f'"{chunk.labels[0]}"']
+        source = _SOURCE.fullmatch(str(_literal(body.pop("source"))))
         version = _literal(body.pop("version"))
-    except (KeyError, TypeError):
+    except _Unmappable:
+        raise
+    except Exception:
         raise _Unmappable from None
-    if not source or not isinstance(version, str) or not _VERSION.match(version):
+    body.pop("__is_block__", None)
+    if not source or not isinstance(version, str) or not _VERSION.fullmatch(version):
         raise _Unmappable
     inputs: dict[str, JsonValue] = {}
     refs: list[Ref] = []
     for key, value in body.items():
-        if key in _MODULE_KEYWORDS or not re.match(NAME_PATTERN, key):
+        if key in RESERVED_NAMES or not re.fullmatch(NAME_PATTERN, key):
             raise _Unmappable
-        if isinstance(value, str) and (ref := _REF.match(value)):
+        if isinstance(value, str) and (ref := _REF.fullmatch(value)):
             refs.append(Ref(input=key, to=ref.group(1), output=ref.group(2)))
         else:
             inputs[key] = _literal(value)
-    return Resource(
-        id=chunk.labels[0], catalog_ref=f"{source.group(1)}@{version}", inputs=inputs, refs=refs
-    )
+    try:
+        return Resource(
+            id=chunk.labels[0], catalog_ref=f"{source.group(1)}@{version}", inputs=inputs, refs=refs
+        )
+    except ValidationError:
+        raise _Unmappable from None
 
 
 def parse(hcl: str, previous: Project) -> Project:
@@ -130,14 +162,18 @@ def parse(hcl: str, previous: Project) -> Project:
         if all(r.id != resource.id for r in mapped.values()):
             mapped[index] = resource
 
-    # A ref must point at a mapped module; demoting one block can strand others, so repeat.
-    while dangling := [
-        i
-        for i, r in mapped.items()
-        if any(ref.to not in {m.id for m in mapped.values()} for ref in r.refs)
-    ]:
-        for i in dangling:
-            del mapped[i]
+    # A ref must point at a mapped module. Demoting one block can strand the blocks that refer
+    # to it, so walk the reverse-reference graph once instead of rescanning.
+    by_id = {r.id: i for i, r in mapped.items()}
+    referrers: dict[str, list[int]] = defaultdict(list)
+    for i, r in mapped.items():
+        for ref in r.refs:
+            referrers[ref.to].append(i)
+    queue = [i for i, r in mapped.items() if any(ref.to not in by_id for ref in r.refs)]
+    while queue:
+        i = queue.pop()
+        if i in mapped:
+            queue += referrers[mapped.pop(i).id]
 
     ids = {r.id for r in mapped.values()}
     old = {r.id: r for r in previous.resources}
@@ -155,15 +191,17 @@ def parse(hcl: str, previous: Project) -> Project:
     texts = [c.text for i, c in enumerate(chunks) if i not in mapped]
     custom: list[CustomHcl] = []
     used = {old_ids[t] for t in texts if t in old_ids}
+    taken: set[str] = set()
     n = 0
     for text in texts:
         cid = old_ids.get(text)
-        if cid is None or any(c.id == cid for c in custom):
+        if cid is None or cid in taken:
             n += 1
             while f"custom_{n}" in used:
                 n += 1
             cid = f"custom_{n}"
             used.add(cid)
+        taken.add(cid)
         custom.append(CustomHcl(id=cid, hcl=text))
 
     data = previous.model_dump()

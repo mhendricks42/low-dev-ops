@@ -38,6 +38,8 @@ def test_generate_is_deterministic() -> None:
         ({}, "{}"),
         ({"a": 1, "b-c": "x", "1x": True}, '{ "1x" = true, a = 1, "b-c" = "x" }'),
         ({"o": {"p": [1]}}, "{ o = { p = [1] } }"),
+        ({"null": 1, "for": 2, "foo\n": 3}, '{ "foo\\n" = 3, "for" = 2, "null" = 1 }'),
+        ("nul\x00 esc\x1b ls\u2028 del\x7f", '"nul\\u0000 esc\\u001b ls\\u2028 del\\u007f"'),
     ],
 )
 def test_render_value(value: object, hcl: str) -> None:
