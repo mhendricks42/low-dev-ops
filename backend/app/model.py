@@ -1,12 +1,22 @@
 """The internal model: one Project per project.json, the single source of truth (ADR-0002)."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    JsonValue,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 from pydantic.alias_generators import to_camel
 
 ID_PATTERN = r"^[a-z][a-z0-9_]{0,62}$"
 CATALOG_REF_PATTERN = r"^avm-[a-z0-9-]+@\d+\.\d+\.\d+$"
+# Input and output names are written into HCL unquoted, so they must be plain identifiers.
+NAME_PATTERN = r"^[A-Za-z_][A-Za-z0-9_]{0,127}$"
 
 
 class _Model(BaseModel):
@@ -33,9 +43,9 @@ class Naming(_Model):
 
 
 class Ref(_Model):
-    input: str
+    input: str = Field(pattern=NAME_PATTERN)
     to: str = Field(pattern=ID_PATTERN)
-    output: str
+    output: str = Field(pattern=NAME_PATTERN)
 
 
 class Layout(_Model):
@@ -47,7 +57,7 @@ class Resource(_Model):
     id: str = Field(pattern=ID_PATTERN)
     catalog_ref: str = Field(pattern=CATALOG_REF_PATTERN)
     parent: str | None = None
-    inputs: dict[str, JsonValue] = {}
+    inputs: dict[Annotated[str, StringConstraints(pattern=NAME_PATTERN)], JsonValue] = {}
     refs: list[Ref] = []
     layout: Layout | None = None
 

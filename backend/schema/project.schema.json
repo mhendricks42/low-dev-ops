@@ -96,10 +96,12 @@
       "additionalProperties": false,
       "properties": {
         "input": {
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
           "title": "Input",
           "type": "string"
         },
         "output": {
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
           "title": "Output",
           "type": "string"
         },
@@ -131,10 +133,12 @@
           "type": "string"
         },
         "inputs": {
-          "additionalProperties": {
-            "$ref": "#/$defs/JsonValue"
-          },
           "default": {},
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_]{0,127}$": {
+              "$ref": "#/$defs/JsonValue"
+            }
+          },
           "title": "Inputs",
           "type": "object"
         },
