@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(make help)",
+      "Bash(make install)",
+      "Bash(make lint)",
+      "Bash(make typecheck)",
+      "Bash(make test)",
+      "Bash(make check)",
+      "Bash(make e2e)",
+      "Bash(make fmt)",
+      "Bash(uv sync*)",
+      "Bash(uv run ruff *)",
+      "Bash(uv run mypy *)",
+      "Bash(uv run pytest*)",
+      "Bash(npm ci)",
+      "Bash(npm run lint)",
+      "Bash(npm run typecheck)",
+      "Bash(npm run test*)",
+      "Bash(npm test*)",
+      "Bash(npm run build)",
+      "Bash(npm run format)",
+      "Bash(npm run e2e*)",
+      "Bash(npx playwright test*)",
+      "Bash(npx vitest run*)",
+      "Bash(npx eslint *)",
+      "Bash(npx prettier *)",
+      "Bash(terraform fmt*)",
+      "Bash(terraform validate*)",
+      "Bash(terraform init -backend=false*)",
+      "Bash(tflint*)",
+      "Bash(checkov *)",
+      "Bash(trivy config *)",
+      "Bash(conftest test *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)",
+      "Bash(git switch *)",
+      "Bash(git add *)",
+      "Bash(git commit -m *)",
+      "Bash(gh pr view*)",
+      "Bash(gh pr checks*)"
+    ],
+    "deny": [
+      "Bash(terraform apply*)",
+      "Bash(terraform destroy*)",
+      "Bash(terraform import*)",
+      "Bash(terraform taint*)",
+      "Bash(terraform force-unlock*)",
+      "Bash(terraform state rm*)",
+      "Bash(terraform state mv*)",
+      "Bash(terraform state push*)",
+      "Bash(az * create*)",
+      "Bash(az * delete*)",
+      "Bash(az * update*)",
+      "Bash(az * set*)",
+      "Bash(az * add*)",
+      "Bash(az * remove*)",
+      "Bash(az * assign*)",
+      "Bash(az * purge*)",
+      "Bash(az * start*)",
+      "Bash(az * stop*)",
+      "Bash(az * restart*)",
+      "Bash(az * deploy*)",
+      "Bash(az * invoke*)",
+      "Bash(az * import*)",
+      "Bash(az * lock*)",
+      "Bash(az * tag*)",
+      "Bash(az deployment *)",
+      "Bash(az rest *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push origin main*)",
+      "Bash(gh pr merge*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-git.sh" }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format.sh" }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check.sh", "timeout": 600 }]
+      }
+    ]
+  }
+}
