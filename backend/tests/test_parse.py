@@ -162,3 +162,24 @@ def test_demoting_a_long_chain_is_linear() -> None:
     _demote_dangling(mapped)
     assert mapped == {}
     assert time.perf_counter() - start < 1  # a rescanning loop would take minutes here
+
+
+def test_dotted_heredoc_marker_is_kept_verbatim() -> None:
+    block = "locals {\n  x = <<E.T\n}\nE.T\n}"
+    assert custom_texts(parse(hcl(block), load_project("rg"))) == [block]
+
+
+def test_module_hidden_in_a_heredoc_is_never_mapped() -> None:
+    # If the splitter and python-hcl2 ever disagree on where blocks are, refuse to guess.
+    smuggled = RG.replace('module "rg1"', 'module "evil"')
+    text = hcl(f"locals {{\n  x = <<E.T\n}}\n{smuggled}\nlocals {{\nE.T\n}}")
+    parsed = parse(text, load_project("rg"))
+    assert parsed.resources == []
+
+
+def test_splitter_disagreeing_with_hcl2_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.hcl.blocks import split_blocks
+
+    monkeypatch.setattr("app.hcl.parse.split_blocks", lambda text: split_blocks(text)[:-1])
+    with pytest.raises(HclParseError, match="unambiguously"):
+        parse(hcl(RG), load_project("rg"))

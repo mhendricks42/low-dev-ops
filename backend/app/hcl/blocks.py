@@ -9,7 +9,8 @@ from dataclasses import dataclass
 
 from app.hcl import HclParseError
 
-_HEREDOC = re.compile(r"<<-?([A-Za-z_][\w-]*)\r?\n")
+# Same marker characters as python-hcl2, so both agree on where a heredoc ends.
+_HEREDOC = re.compile(r"<<-?([A-Za-z][A-Za-z0-9._-]*)\r?\n")
 _HEADER = re.compile(
     r'([A-Za-z_][\w-]*)((?:[ \t]+(?:"(?:[^"\\\n]|\\.)*"|[A-Za-z_][\w-]*))*)[ \t]*\{'
 )

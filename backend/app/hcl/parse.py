@@ -2,7 +2,7 @@
 kept verbatim as custom HCL. On a syntax error nothing is returned (ARCHITECTURE sync rule 3)."""
 
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from typing import Any
 
 import hcl2
@@ -161,13 +161,33 @@ def _demote_dangling(mapped: dict[int, Resource]) -> None:
             queue += referrers[mapped.pop(i).id]
 
 
+def _block_keys(chunks: list[Chunk]) -> Counter[tuple[str, str | None]]:
+    return Counter((c.type, c.labels[0] if c.labels else None) for c in chunks if c.type)
+
+
+def _hcl2_block_keys(tree: dict[str, Any]) -> Counter[tuple[str, str | None]]:
+    keys: Counter[tuple[str, str | None]] = Counter()
+    for kind, entries in tree.items():
+        if kind == "__comments__" or not isinstance(entries, list):
+            continue
+        for entry in entries:
+            names = [k for k in entry if k != "__is_block__"]
+            label = names[0] if len(names) == 1 and names[0].startswith('"') else None
+            keys[(kind, label[1:-1] if label else None)] += 1
+    return keys
+
+
 def parse(hcl: str, previous: Project) -> Project:
     """Parse a main.tf back into a model. Fields HCL does not carry come from `previous`."""
     try:
-        hcl2.loads(hcl)
+        tree: dict[str, Any] = hcl2.loads(hcl)
     except Exception as e:  # python-hcl2 raises lark errors of several types
         raise HclParseError(str(e).splitlines()[0], getattr(e, "line", None)) from e
-    chunks = [c for c in split_blocks(hcl) if c.text not in _HEADER_BLOCKS]
+    all_chunks = split_blocks(hcl)
+    if _block_keys(all_chunks) != _hcl2_block_keys(tree):
+        # Never guess: a module the splitter sees might be text inside a heredoc, or vice versa.
+        raise HclParseError("could not split the file into blocks unambiguously")
+    chunks = [c for c in all_chunks if c.text not in _HEADER_BLOCKS]
 
     mapped: dict[int, Resource] = {}
     seen: set[str] = set()
