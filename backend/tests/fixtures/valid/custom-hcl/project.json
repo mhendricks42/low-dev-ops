@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "webapp-dev",
+    "created": "2026-10-15T00:00:00Z",
+    "lowdevopsVersion": "0.1.0"
+  },
+  "subscription": {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "tenantId": "11111111-1111-1111-1111-111111111111",
+    "location": "westeurope"
+  },
+  "naming": {
+    "workload": "webapp",
+    "env": "dev",
+    "region": "weu",
+    "pattern": "{type}-{workload}-{env}-{region}"
+  },
+  "tags": {
+    "env": "dev",
+    "owner": "platform-team"
+  },
+  "resources": [
+    {
+      "id": "rg1",
+      "catalogRef": "avm-res-resources-resourcegroup@0.4.0",
+      "parent": null,
+      "inputs": {
+        "enable_telemetry": false,
+        "location": "westeurope",
+        "name": "rg-webapp-dev-weu",
+        "tags": {
+          "env": "dev",
+          "owner": "platform-team"
+        }
+      },
+      "refs": [],
+      "layout": {
+        "x": 40,
+        "y": 40
+      }
+    }
+  ],
+  "customHcl": [
+    {
+      "id": "custom_1",
+      "hcl": "# Storage the catalog does not cover yet.\nresource \"azapi_resource\" \"sa\" {\n  type      = \"Microsoft.Storage/storageAccounts@2023-05-01\"\n  name      = \"stwebappdevweu\"\n  parent_id = module.rg1.resource_id\n  location  = \"westeurope\"\n  body = {\n    kind = \"StorageV2\"\n    sku  = { name = \"Standard_LRS\" }\n  }\n}"
+    },
+    {
+      "id": "custom_2",
+      "hcl": "locals {\n  # Braces in strings and comments must not confuse the splitter: { } \"\n  greeting = \"hello { world }\"\n  script   = <<-EOT\n    echo \"}\"\n  EOT\n}"
+    },
+    {
+      "id": "custom_3",
+      "hcl": "variable \"env\" {\n  type    = string\n  default = \"dev\"\n}"
+    },
+    {
+      "id": "custom_4",
+      "hcl": "/* Uses var. so the parser must keep it verbatim. */\nmodule \"rg2\" {\n  source  = \"Azure/avm-res-resources-resourcegroup/azurerm\"\n  version = \"0.4.0\"\n\n  enable_telemetry = false\n  location         = \"westeurope\"\n  name             = \"rg-webapp-${var.env}-weu\"\n}"
+    }
+  ],
+  "waivers": []
+}
