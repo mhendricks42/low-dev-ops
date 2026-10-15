@@ -30,6 +30,8 @@ ROADMAP §M1: the Pydantic model, the generated JSON Schema, a deterministic gen
   - a `parent` or `refs.to` that doesn't point at an existing resource
   - a ref to the resource itself
   - an input set both literally and by a ref
+  - an input or ref input named after a module meta-argument (`source`, `version`, `count`, `for_each`, `depends_on`, `providers`, `lifecycle`)
+  - a non-finite number (NaN or Infinity) anywhere in `inputs`
 - The fields mirror `docs/ARCHITECTURE.md`. `JsonValue` is a recursive JSON value.
 
 **`app/schema.py`:** `project_json_schema() -> dict` (Pydantic `model_json_schema`, by alias). The output is committed as `backend/schema/project.schema.json`, which `make schema` regenerates. A test fails if the committed file drifts from the generated one.

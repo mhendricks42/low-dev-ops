@@ -143,27 +143,12 @@ def _module(chunk: Chunk) -> Resource:
         raise _Unmappable from None
 
 
-def parse(hcl: str, previous: Project) -> Project:
-    """Parse a main.tf back into a model. Fields HCL does not carry come from `previous`."""
-    try:
-        hcl2.loads(hcl)
-    except Exception as e:  # python-hcl2 raises lark errors of several types
-        raise HclParseError(str(e).splitlines()[0], getattr(e, "line", None)) from e
-    chunks = [c for c in split_blocks(hcl) if c.text not in _HEADER_BLOCKS]
+def _demote_dangling(mapped: dict[int, Resource]) -> None:
+    """Drop resources whose refs point at a module that is not mapped, transitively.
 
-    mapped: dict[int, Resource] = {}
-    for index, chunk in enumerate(chunks):
-        if chunk.type != "module":
-            continue
-        try:
-            resource = _module(chunk)
-        except _Unmappable:
-            continue
-        if all(r.id != resource.id for r in mapped.values()):
-            mapped[index] = resource
-
-    # A ref must point at a mapped module. Demoting one block can strand the blocks that refer
-    # to it, so walk the reverse-reference graph once instead of rescanning.
+    Demoting one block can strand the blocks that refer to it, so walk the reverse-reference
+    graph once instead of rescanning (linear in the number of refs).
+    """
     by_id = {r.id: i for i, r in mapped.items()}
     referrers: dict[str, list[int]] = defaultdict(list)
     for i, r in mapped.items():
@@ -174,6 +159,30 @@ def parse(hcl: str, previous: Project) -> Project:
         i = queue.pop()
         if i in mapped:
             queue += referrers[mapped.pop(i).id]
+
+
+def parse(hcl: str, previous: Project) -> Project:
+    """Parse a main.tf back into a model. Fields HCL does not carry come from `previous`."""
+    try:
+        hcl2.loads(hcl)
+    except Exception as e:  # python-hcl2 raises lark errors of several types
+        raise HclParseError(str(e).splitlines()[0], getattr(e, "line", None)) from e
+    chunks = [c for c in split_blocks(hcl) if c.text not in _HEADER_BLOCKS]
+
+    mapped: dict[int, Resource] = {}
+    seen: set[str] = set()
+    for index, chunk in enumerate(chunks):
+        if chunk.type != "module":
+            continue
+        try:
+            resource = _module(chunk)
+        except _Unmappable:
+            continue
+        if resource.id not in seen:
+            seen.add(resource.id)
+            mapped[index] = resource
+
+    _demote_dangling(mapped)
 
     ids = {r.id for r in mapped.values()}
     old = {r.id: r for r in previous.resources}
