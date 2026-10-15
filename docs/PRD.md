@@ -1,10 +1,10 @@
-# TerraCanvas: Claude Code Kickoff Playbook
+# LowDevOps: Claude Code Kickoff Playbook
 
 Oct 15, 2026 · @matt
 
 ## Product vision and decisions
 
-TerraCanvas (working name) is an open-source, local-first web app that lets citizen developers, novices and experts design, validate, plan and apply Azure infrastructure entirely from a GUI, with full HCL available for anyone who wants it. Claude Code builds it in phase-gated milestones over a 2–4 week MVP.
+LowDevOps is an open-source, local-first web app that lets citizen developers, novices and experts design, validate, plan and apply Azure infrastructure entirely from a GUI, with full HCL available for anyone who wants it. Claude Code builds it in phase-gated milestones over a 2–4 week MVP.
 
 | Area | Decision from survey |
 | --- | --- |
@@ -22,6 +22,35 @@ TerraCanvas (working name) is an open-source, local-first web app that lets citi
 | Polish for v1 | Design system + accessible UI; docs + onboarding |
 | Standards | Microsoft Cloud Adoption Framework naming and tag defaults, fully configurable |
 | Build style | Phase-gated: Claude builds a milestone, you review the PR, then the next phase starts |
+| License | MIT |
+
+## Detailed decisions
+
+Settled in the spec interview (Oct 15, 2026). [ARCHITECTURE.md](ARCHITECTURE.md) and the [ADRs](adr/) give the reasoning.
+
+| Topic | Decision |
+| --- | --- |
+| Project scope | One project = one Azure subscription and one environment. For dev/prod, clone the project |
+| Model store | `project.json` per project in a local workspace folder, validated by a JSON Schema generated from the backend's Pydantic models. Generated `.tf` files sit beside it. No database |
+| HCL that can't be mapped back | Kept verbatim as an opaque "custom HCL" node: shown on the canvas, view-only in the wizard, never rewritten by the generator |
+| HCL to model sync | Wizard and canvas edits regenerate HCL instantly. HCL edits are parsed on save (or after a debounce). On a parse error the model stays unchanged and the error shows inline. Generator output is canonical, so saving reformats the file |
+| Canvas edges | Typed references the catalog declares (e.g. app → Key Vault). Drawing one sets the input, which renders as `module.<id>.<output>`. Containment (RG > VNet > subnet) is drawn as nesting, not as edges |
+| Catalog format | `catalog/*.yaml`: an exact AVM version pin, inputs marked basic / advanced / hidden with CAF defaults, allowed references, and an example. CI checks every pin against the registry and runs `terraform validate` on each example. Version upgrades are PRs |
+| State bootstrap | One shared backend per subscription: an RG + Storage account (blob versioning, soft delete, no public blob access, Entra-only auth), created via `az` as the signed-in user and recorded in local app settings. Each project gets its own state key |
+| Credentials | The dev container mounts the host's `~/.azure`. Terraform runs with `ARM_USE_CLI=true`. The UI shows the signed-in account and subscription, and the user confirms the subscription before each plan. The app never stores secrets |
+| Apply | Applies only the saved plan file the user reviewed (`terraform apply plan.tfplan`). Requires typing the project name. Destroys and replacements are highlighted and need a second confirmation. One run per project at a time (state lock) |
+| Guardrail failures | Severity tiers: high/critical findings block apply. Medium/low can be waived with a written reason that is stored in `project.json` and shown in plan output |
+| Accessibility | WCAG 2.2 AA. axe-core reports zero violations in Playwright. Every canvas action can also be done by keyboard or through an equivalent list view |
+
+## Out of scope (v1)
+
+- Exporting projects to Git with a generated CI/CD pipeline. Projects are plain files, so users can commit them by hand (v0.2 candidate)
+- Brownfield: importing existing resources or a drift UI. Plan output still shows drift on resources LowDevOps created
+- Several environments or subscriptions in one project
+- In-app AI or a natural-language entry point (stretch goal only)
+- Clouds other than Azure, and Terraform providers beyond `azurerm` / `azapi`
+- Hosted, multi-user or team mode. The app is single-user and runs on localhost
+- Auto-apply, scheduled runs, or service-principal credentials
 
 ## What works with Claude Code in late 2026
 
@@ -63,7 +92,7 @@ Claude loops on its own until `make check` and the spec-reviewer subagent both p
 One monorepo with a Python API, a React UI, a curated module catalog, and a `.claude/` folder that is versioned like code. Specs live in `docs/specs/`, one folder per feature, so every session starts from a file rather than chat history.
 
 ```text
-terracanvas/
+low-dev-ops/
 ├── CLAUDE.md                     # <200 lines: stack, commands, hard rules, links to docs
 ├── .claude/
 │   ├── settings.json             # permissions allowlist, hooks, MCP servers
@@ -112,7 +141,7 @@ terracanvas/
 ├── catalog/                      # YAML: one entry per AVM / raw resource
 ├── policies/                     # OPA/Conftest + Checkov custom rules
 ├── examples/                     # sample projects (hub-spoke, web app)
-├── LICENSE                       # MIT or Apache-2.0
+├── LICENSE                       # MIT
 ├── CONTRIBUTING.md
 ├── SECURITY.md
 └── README.md
@@ -125,7 +154,7 @@ terracanvas/
 Set up the machine and an empty repo so Claude's first session can build, test and open PRs without stopping to ask.
 
 - [ ] **Install tools:** Claude Code (`npm install -g @anthropic-ai/claude-code`, then `claude update`), `gh` CLI (`gh auth login`), Docker Desktop, VS Code + Dev Containers extension, Azure CLI.
-- [ ] **Create the repo:** `gh repo create terracanvas --public --clone --license mit --gitignore Python` then `cd terracanvas`. Pick MIT or Apache-2.0; Apache adds a patent grant.
+- [ ] **Create the repo:** `gh repo create low-dev-ops --public --clone --license mit --gitignore Python` then `cd low-dev-ops`.
 - [ ] **Protect `main`:** require a PR and passing CI before merge (Settings → Branches, or ask Claude to do it with `gh api` in M0).
 - [ ] **Add MCP servers (user scope):**
   - `claude mcp add terraform -s user -t stdio -- docker run -i --rm hashicorp/terraform-mcp-server`
@@ -135,7 +164,7 @@ Set up the machine and an empty repo so Claude's first session can build, test a
 - [ ] **Install the GitHub app:** inside Claude Code run `/install-github-app` so `@claude` works on issues and PRs.
 - [ ] **Create a sandbox Azure subscription** (or resource group) for end-to-end tests of plan/apply and the bootstrap. Keep these credentials out of Claude's session: you run apply tests yourself until M5.
 - [ ] **Save this playbook** into the repo as `docs/PRD.md` (export the doc as Markdown) so Claude can read it with `@docs/PRD.md`.
-- [ ] **Start Claude in the repo:** `claude`, then run `/rename terracanvas-m0`. Use plan mode for every milestone kickoff.
+- [ ] **Start Claude in the repo:** `claude`, then run `/rename low-dev-ops-m0`. Use plan mode for every milestone kickoff.
 
 ## Prompts to give Claude Code
 
@@ -144,7 +173,7 @@ Run these in order. Each prompt ends with a check Claude must pass and stops at 
 **Prompt 1 — Finish the spec (plan mode, \~20 min)**
 
 ```text
-Read @docs/PRD.md. It describes TerraCanvas, an open-source local web app that lets
+Read @docs/PRD.md. It describes LowDevOps, an open-source local web app that lets
 citizen developers, novices and experts design, validate, plan and apply Azure
 infrastructure from a GUI (wizard + canvas), with optional HCL editing.
 
@@ -235,7 +264,7 @@ Then update CLAUDE.md with any rule that would have prevented these issues
 
 Seven milestones, each one PR with a testable exit criterion. The deterministic HCL engine comes first because every view depends on it; the first real `apply` against a sandbox subscription is the key week-3 gate.
 
-&#91;embedded content: MVP roadmap · 7 milestones over 4 weeks\]
+See [ROADMAP.md](ROADMAP.md) for milestones M0–M6 and their exit criteria.
 
 If week 2 slips, cut AKS and Functions from the catalog before cutting guardrails; landing zones can move to v0.2.
 
@@ -245,18 +274,18 @@ The biggest risk is scope: three synced editors plus in-app apply is a lot for 2
 
 | Risk | Mitigation |
 | --- | --- |
-| Two-way HCL ↔ GUI sync breaks on hand-edited HCL | HCL edits outside the model show as "advanced, view-only in GUI" blocks; round-trip tests on every catalog entry |
+| Two-way HCL ↔ GUI sync breaks on hand-edited HCL | HCL the model can't represent becomes an opaque "custom HCL" node (view-only in GUI); parse on save, model unchanged on error; round-trip tests on every catalog entry |
 | AVM modules have many inputs; forms overwhelm novices | Catalog YAML marks each input as basic / advanced / hidden with CAF defaults |
 | `apply` with user credentials causes damage | Plan → guardrails → typed confirmation; destroy needs a second confirmation; no auto-apply |
 | Claude invents module inputs or versions | Terraform MCP server + AVM skill; CI runs `terraform validate` on generated examples |
 | CLAUDE.md drifts and gets ignored | Keep under 200 lines; prune at each milestone; move rules to hooks where possible |
 | Public repo leaks secrets or state | `.gitignore` for state and tfvars, secret scanning in CI, state only in Azure Storage |
 
-**Open questions for you**
+**Open questions (resolved)**
 
-- [ ] Final product name and license (MIT vs Apache-2.0)?
-- [ ] Multi-subscription and multi-environment (dev/test/prod) support in v1, or one subscription per project?
-- [ ] Should projects export to a Git repo with a CI pipeline for teams that outgrow local apply?
+- [x] Product name and license: **LowDevOps**, **MIT**.
+- [x] Multi-subscription / multi-environment: no. One subscription and one environment per project in v1.
+- [x] Git export with a CI pipeline: out of scope for v1. Projects are plain files that can be committed by hand.
 
 ## Sources
 
