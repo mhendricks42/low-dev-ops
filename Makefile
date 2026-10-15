@@ -11,7 +11,7 @@ install: ## Install backend and frontend dependencies
 	$(BE) uv sync --locked
 	$(FE) npm ci
 
-lint: ## ruff + eslint
+lint: ## ruff + eslint + prettier --check
 	$(BE) uv run ruff check . && uv run ruff format --check .
 	$(FE) npm run lint
 
@@ -34,4 +34,4 @@ dev: ## API on :8000 and UI on :5173, both bound to 127.0.0.1
 
 fmt: ## Auto-fix formatting and lint
 	$(BE) uv run ruff format . && uv run ruff check --fix .
-	$(FE) npx eslint --fix .
+	$(FE) npm run format
