@@ -1,9 +1,11 @@
+import time
+
 import pytest
 
 from app.hcl import HclParseError
 from app.hcl.generate import HEADER, generate
-from app.hcl.parse import parse
-from app.model import Project
+from app.hcl.parse import _demote_dangling, parse
+from app.model import Project, Ref, Resource
 from tests.conftest import FIXTURES, load_project
 
 RG = """module "rg1" {
@@ -135,14 +137,28 @@ def test_heredoc_closing_marker_with_trailing_space_does_not_close_it() -> None:
     assert custom_texts(parsed) == [text.rstrip()]
 
 
-def test_long_chain_of_dangling_refs_is_fast() -> None:
-    import time
-
+def test_chain_of_dangling_refs_is_demoted_end_to_end() -> None:
     blocks = [
         RG.replace('module "rg1"', f'module "m{i}"').replace('"rg-a"', f"module.m{i - 1}.name")
-        for i in range(1, 800)
+        for i in range(1, 20)
     ]
-    start = time.perf_counter()
     parsed = parse(hcl(*blocks), load_project("rg"))
     assert parsed.resources == []  # m0 does not exist, so every module is demoted
-    assert time.perf_counter() - start < 3
+    assert custom_texts(parsed) == blocks
+
+
+def test_demoting_a_long_chain_is_linear() -> None:
+    # Timed on the pure helper so the guard does not depend on parser speed.
+    n = 20_000
+    mapped = {
+        i: Resource(
+            id=f"m{i}",
+            catalog_ref="avm-res-resources-resourcegroup@0.4.0",
+            refs=[Ref(input="parent_id", to=f"m{i - 1}", output="name")],
+        )
+        for i in range(1, n)
+    }
+    start = time.perf_counter()
+    _demote_dangling(mapped)
+    assert mapped == {}
+    assert time.perf_counter() - start < 1  # a rescanning loop would take minutes here
