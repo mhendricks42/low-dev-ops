@@ -181,6 +181,22 @@ Implement milestone M0 from @docs/ROADMAP.md. Plan first, then build:
 7. GitHub Actions CI running make check, CONTRIBUTING.md, SECURITY.md, issue and PR templates.
 Done when: `make check` passes locally and in the dev container, and a hello-world
 API + UI page render (prove it with a Playwright screenshot). Open a PR.
+
+Git workflow (follow strictly, and encode it in CLAUDE.md and hooks as part of M0):
+- Before any edit, run `git switch main && git pull`, then create a branch:
+  feat/m0-foundations. Never commit to main.
+- Branch names: feat/, fix/, docs/, chore/, ci/ + short kebab-case description.
+- Conventional Commits (feat:, fix:, docs:, chore:, ci:, test:, refactor:).
+  Small, logical commits. Never use --no-verify or force-push.
+- Push the branch and open the PR with `gh pr create`, filling in
+  .github/pull_request_template.md (summary, linked milestone, test evidence).
+- We squash-merge. I merge, not you.
+- Add a "Git workflow" section to CLAUDE.md with these rules (5 lines max).
+- Add a PreToolUse hook in .claude/settings.json that blocks `git commit`
+  and `git push` when the current branch is main.
+- Add deny rules: Bash(git push --force*), Bash(git push origin main*),
+  Bash(gh pr merge*).
+- Add a ruleset/CI check that requires conventional PR titles.
 ```
 
 **Prompt 3 — Every later milestone (M1-M6)**
