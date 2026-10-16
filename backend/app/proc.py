@@ -15,8 +15,12 @@ import time
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import IO
+
+# How long to wait for output still in the pipe after the tool exited.
+READER_GRACE_SECONDS = 2
 
 
 class ProcError(Exception):
@@ -77,50 +81,81 @@ def run(
     binary = shutil.which(tool)
     if binary is None:
         raise ProcError(f"{tool} is not installed")
-    with (
-        subprocess.Popen(  # noqa: S603 - fixed argument list, no shell
-            [binary, *args[1:]],
-            cwd=cwd,
-            env=dict(env),
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT if on_line else subprocess.PIPE,
-            text=True,
-            errors="replace",  # odd bytes in a tool's output never abort the run
-            start_new_session=True,
-        ) as process
-    ):
-        # Every reap goes through `reaped` + poll(), so the timer can never signal a pid that
-        # was already reaped (and may now belong to someone else).
-        reaped = threading.Lock()
-        timed_out = threading.Event()
+    process = subprocess.Popen(  # noqa: S603 - fixed argument list, no shell
+        [binary, *args[1:]],
+        cwd=cwd,
+        env=dict(env),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT if on_line else subprocess.PIPE,
+        text=True,
+        errors="replace",  # odd bytes in a tool's output never abort the run
+        start_new_session=True,
+    )
+    # The child is reaped only at the very end (under `lock`), so until then its pid and
+    # group id stay reserved: killpg can never hit a reused pid.
+    lock = threading.Lock()
+    reaped = False
+    timed_out = threading.Event()
+    listening = threading.Event()
+    listening.set()
+    outcome: list[tuple[str, str]] = []
+    failure: list[BaseException] = []
 
-        def kill() -> None:
-            with reaped:
-                if process.poll() is None:
-                    with suppress(ProcessLookupError):  # the group may have just exited
-                        os.killpg(process.pid, signal.SIGKILL)
+    def exited() -> bool:
+        flags = os.WEXITED | os.WNOHANG | os.WNOWAIT  # look, don't reap
+        return os.waitid(os.P_PID, process.pid, flags) is not None
 
-        def expire() -> None:
-            timed_out.set()
-            kill()
+    def kill_group(*, on_timeout: bool = False) -> None:
+        with lock:
+            if reaped:
+                return
+            if on_timeout and not exited():
+                timed_out.set()  # only a tool that was still running timed out
+            with suppress(ProcessLookupError):
+                os.killpg(process.pid, signal.SIGKILL)
 
-        timer = threading.Timer(timeout, expire)
-        timer.daemon = True
-        timer.start()
-        finished = False
+    def emit(line: str) -> None:
+        if listening.is_set() and on_line is not None:  # nothing reaches it after run() returns
+            on_line(line)
+
+    def read() -> None:
         try:
-            stdout, stderr = _read(process, on_line)
-            finished = True
+            outcome.append(_read(process, emit if on_line else None))
+        except BaseException as e:  # handed to the caller below
+            failure.append(e)
         finally:
-            if not finished:  # a callback or read error: leave no tool running
-                kill()
-            while True:
-                with reaped:
-                    if process.poll() is not None:
-                        break
-                time.sleep(0.02)
-            timer.cancel()
-    if timed_out.is_set():
+            for stream in (process.stdout, process.stderr):
+                if stream is not None:
+                    with suppress(OSError):
+                        stream.close()
+
+    # A separate reader, so a process that escaped the group (setsid) and keeps the output
+    # pipe open can't hold the run open: we stop waiting for it once the tool has exited.
+    reader = threading.Thread(target=read, daemon=True)
+    reader.start()
+    timer = threading.Timer(timeout, partial(kill_group, on_timeout=True))
+    timer.daemon = True
+    timer.start()
+    try:
+        while reader.is_alive() and not exited():
+            reader.join(0.02)
+        if failure:  # a callback or read error: leave no tool running
+            kill_group()
+        while not exited():  # the timer guarantees this ends
+            time.sleep(0.02)
+        kill_group()  # whatever the tool left behind in its group
+        reader.join(READER_GRACE_SECONDS)
+    finally:
+        listening.clear()
+        timer.cancel()
+        kill_group()
+        with lock:
+            process.wait()
+            reaped = True
+    if failure:
+        raise failure[0]
+    if timed_out.is_set() or not outcome:
         raise ProcTimeout(f"{os.path.basename(tool)} took longer than {timeout:g} s")
+    stdout, stderr = outcome[0]
     return Completed(process.returncode, stdout, stderr)

@@ -46,6 +46,10 @@ def test_az_never_sees_service_principal_credentials(
     monkeypatch.setenv("AZURE_CLIENT_SECRET", "s3cret")
     monkeypatch.setenv("ARM_CLIENT_SECRET", "s3cret")
     for name in (
+        "ARM_SUBSCRIPTION_ID",
+        "ARM_TENANT_ID",
+        "AZURE_TENANT_ID",
+        "AZURE_SUBSCRIPTION_ID",
         "ARM_ACCESS_KEY",
         "ARM_SAS_TOKEN",
         "AZURE_STORAGE_KEY",
