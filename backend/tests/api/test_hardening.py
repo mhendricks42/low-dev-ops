@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app.api.projects as projects_api
+from app.api.guard import MAX_BODY_BYTES
 from app.main import app
 from tests.conftest import load_project
 
@@ -127,6 +128,28 @@ def test_symlinked_project_dir_is_not_read(workspace: Path) -> None:
     (workspace / "other").mkdir(parents=True)
     (workspace / "webapp-dev").symlink_to(workspace / "other")
     assert client.get("/api/projects/webapp-dev").status_code == 422
+
+
+@pytest.mark.parametrize("kind", ["fifo", "directory", "oversized"])
+def test_project_file_that_is_not_a_small_regular_file_is_422(workspace: Path, kind: str) -> None:
+    # A FIFO would block the worker forever and a huge file would exhaust memory.
+    path = workspace / "webapp-dev" / "project.json"
+    path.parent.mkdir(parents=True)
+    if kind == "fifo":
+        os.mkfifo(path)
+    elif kind == "directory":
+        path.mkdir()
+    else:
+        path.write_text(" " * (MAX_BODY_BYTES + 1))
+    assert client.get("/api/projects/webapp-dev").status_code == 422
+
+
+def test_file_in_place_of_the_project_dir_is_422(workspace: Path) -> None:
+    workspace.mkdir()
+    (workspace / "webapp-dev").write_text("")
+    response = client.put("/api/projects/webapp-dev", json=body())
+    assert response.status_code == 422
+    assert response.json()["detail"]["message"] == "project path is not a directory"
 
 
 # Non-ASCII digits (e.g. "\u00b9") cannot be sent over HTTP/1.1; isascii() guards them anyway.
