@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=catalog.schema.json
+schemaVersion: 1
+module: avm-res-storage-storageaccount
+version: 0.10.0
+title: Storage account
+category: foundation
+cafAbbreviation: st
+inputs:
+  name: { tier: basic, fill: name, description: "Account name: 3-24 lowercase letters and digits, globally unique." }
+  location: { tier: basic, fill: location, description: "Azure region." }
+  parent_id: { tier: basic, description: "Resource group that holds the account." }
+  account_replication_type: { tier: basic, default: ZRS, description: "LRS, ZRS, GRS, RAGRS, GZRS or RAGZRS." }
+  account_tier: { tier: advanced, default: Standard, description: "Standard or Premium." }
+  account_kind: { tier: advanced, default: StorageV2, description: "Kind of storage account." }
+  containers: { tier: advanced, description: "Blob containers, keyed by name." }
+  shares: { tier: advanced, description: "File shares, keyed by name." }
+  queues: { tier: advanced, description: "Queues, keyed by name." }
+  tables: { tier: advanced, description: "Tables, keyed by name." }
+  public_network_access_enabled:
+    tier: advanced
+    default: false
+    description: Allow access from public networks. Off by default; use private endpoints.
+  network_rules: { tier: advanced, description: "IP and subnet allow lists." }
+  private_endpoints: { tier: advanced, description: "Private endpoints for the account." }
+  role_assignments: { tier: advanced, description: "RBAC role assignments on the account." }
+  tags: { tier: advanced, description: "Tags applied to the account." }
+  lock: { tier: advanced, description: "Management lock: CanNotDelete or ReadOnly." }
+  shared_access_key_enabled: { tier: hidden, default: false }
+  min_tls_version: { tier: hidden, default: TLS1_2 }
+  https_traffic_only_enabled: { tier: hidden, default: true }
+  allow_nested_items_to_be_public: { tier: hidden, default: false }
+  enable_telemetry: { tier: hidden, default: false }
+refs:
+  - { input: parent_id, from: avm-res-resources-resourcegroup, output: resource_id }
+outputs: [name, resource_id, fqdn, containers, shares, queues, tables, resource]
+example: { name: stlowdevopsex }

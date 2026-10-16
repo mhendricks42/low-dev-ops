@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=catalog.schema.json
+schemaVersion: 1
+module: avm-res-keyvault-vault
+version: 0.12.0
+title: Key Vault
+category: foundation
+cafAbbreviation: kv
+inputs:
+  name: { tier: basic, fill: name, description: "Vault name: 3-24 letters, digits and dashes, globally unique." }
+  location: { tier: basic, fill: location, description: "Azure region." }
+  resource_group_name: { tier: basic, description: "Resource group that holds the vault." }
+  tenant_id: { tier: basic, fill: tenant_id, description: "Entra ID tenant that authenticates requests." }
+  sku_name: { tier: basic, default: standard, description: "standard or premium (HSM-backed keys)." }
+  public_network_access_enabled:
+    tier: advanced
+    default: false
+    description: Allow access from public networks. Off by default; use private endpoints.
+  network_acls: { tier: advanced, description: "IP and subnet allow lists." }
+  private_endpoints: { tier: advanced, description: "Private endpoints for the vault." }
+  purge_protection_enabled: { tier: advanced, default: true, description: "Block permanent deletion during the retention period." }
+  soft_delete_retention_days: { tier: advanced, default: 90, description: "Days a deleted vault can be recovered." }
+  role_assignments: { tier: advanced, description: "RBAC role assignments on the vault." }
+  diagnostic_settings: { tier: advanced, description: "Where to send audit logs." }
+  tags: { tier: advanced, description: "Tags applied to the vault." }
+  lock: { tier: advanced, description: "Management lock: CanNotDelete or ReadOnly." }
+  legacy_access_policies_enabled: { tier: hidden, default: false }
+  enable_telemetry: { tier: hidden, default: false }
+refs:
+  - { input: resource_group_name, from: avm-res-resources-resourcegroup, output: name }
+outputs: [name, resource_id, uri, keys_resource_ids, secrets_resource_ids]
+example: { name: kv-lowdevops-ex }

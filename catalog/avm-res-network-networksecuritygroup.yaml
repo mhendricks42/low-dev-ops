@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=catalog.schema.json
+schemaVersion: 1
+module: avm-res-network-networksecuritygroup
+version: 0.6.0
+title: Network security group
+category: foundation
+cafAbbreviation: nsg
+inputs:
+  name: { tier: basic, fill: name, description: "Network security group name." }
+  location: { tier: basic, fill: location, description: "Azure region." }
+  parent_id: { tier: basic, description: "Resource group that holds the group." }
+  security_rules:
+    tier: basic
+    default: {}
+    description: Inbound and outbound rules, keyed by name. Empty means Azure's default rules only.
+  diagnostic_settings: { tier: advanced, description: "Where to send flow and rule logs." }
+  tags: { tier: advanced, description: "Tags applied to the group." }
+  lock: { tier: advanced, description: "Management lock: CanNotDelete or ReadOnly." }
+  enable_telemetry: { tier: hidden, default: false }
+refs:
+  - { input: parent_id, from: avm-res-resources-resourcegroup, output: resource_id }
+outputs: [name, resource_id, security_rules]
+example: { name: nsg-lowdevops-ex }
