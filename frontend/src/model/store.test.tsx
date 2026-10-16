@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { ProjectProvider, useStore } from './store'
 import { CATALOG, project } from './testData'
@@ -46,4 +46,49 @@ test('a load error is announced', async () => {
     </ProjectProvider>,
   )
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Could not load project'))
+})
+
+function Busy() {
+  const { pending, dispatch, project } = useStore()
+  return (
+    <>
+      <p data-pending={String(pending)}>pending</p>
+      <button
+        onClick={() =>
+          dispatch({ type: 'replace', project: { ...project, tags: { changed: 'yes' } } })
+        }
+      >
+        Change
+      </button>
+    </>
+  )
+}
+
+test('a change is pending from the moment it is made until its own save succeeds', async () => {
+  let release: (() => void) | undefined
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/api/catalog') return Response.json({ entries: CATALOG })
+      if (url === '/api/hcl/generate') return Response.json({ hcl: '' })
+      if (init?.method === 'PUT') {
+        if (String(init.body).includes('changed')) await new Promise<void>((r) => (release = r))
+        return Response.json({ issues: [] })
+      }
+      return Response.json({ project: project() })
+    }),
+  )
+  render(
+    <ProjectProvider name="demo">
+      <Busy />
+    </ProjectProvider>,
+  )
+  const flag = await screen.findByText('pending')
+  await waitFor(() => expect(flag).toHaveAttribute('data-pending', 'false')) // initial save done
+  fireEvent.click(screen.getByRole('button', { name: 'Change' }))
+  expect(flag).toHaveAttribute('data-pending', 'true') // immediately, before the debounce
+  await waitFor(() => expect(release).toBeDefined())
+  expect(flag).toHaveAttribute('data-pending', 'true') // still, while the PUT is in flight
+  release?.()
+  await waitFor(() => expect(flag).toHaveAttribute('data-pending', 'false'))
 })
