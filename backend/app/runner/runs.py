@@ -7,10 +7,9 @@ the second line of defence.
 
 import secrets
 import threading
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from functools import partial
 from pathlib import Path
 from typing import Literal
 
@@ -60,24 +59,6 @@ class Run:
     def wait(self, timeout: float | None = None) -> bool:
         with self._changed:
             return self._changed.wait_for(lambda: self.status != "running", timeout)
-
-    def follow(self, idle_timeout: float = 15.0) -> Iterator[str | None]:
-        """Lines from the start, then new ones as they come; None after `idle_timeout` quiet
-        seconds (a keep-alive), ending once the run has finished and every line was sent."""
-        sent = 0
-        while True:
-            with self._changed:
-                self._changed.wait_for(partial(self._has_news, sent), idle_timeout)
-                batch, done = self.lines[sent:], self.status != "running"
-            if not batch and not done:
-                yield None
-            yield from batch
-            sent += len(batch)
-            if done and sent == len(self.lines):
-                return
-
-    def _has_news(self, sent: int) -> bool:
-        return len(self.lines) > sent or self.status != "running"
 
     def summary(self) -> dict[str, object]:
         return {
