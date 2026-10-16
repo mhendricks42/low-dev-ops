@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
 import { expect, test, vi } from 'vitest'
-import { Checkbox, JsonField, Select, Tabs, TextField } from './components'
+import { Checkbox, Dialog, JsonField, Select, Tabs, TextField } from './components'
 
 test('text field is labelled and its error describes it', () => {
   render(<TextField label="Name" value="" error="Required" hint="Lowercase" onChange={() => {}} />)
@@ -35,7 +36,12 @@ test('JSON field only passes on valid JSON and explains invalid input', () => {
   const box = screen.getByLabelText('Address space')
   fireEvent.change(box, { target: { value: '["10.1.0.0/16"' } })
   expect(onChange).not.toHaveBeenCalled()
-  expect(box).toHaveAccessibleDescription(/Not valid JSON/)
+  expect(box).toHaveAttribute('aria-invalid', 'true')
+  expect(box).toHaveAccessibleDescription('') // not announced on every keystroke
+  fireEvent.blur(box)
+  expect(box).toHaveAccessibleDescription(
+    'Address space: not valid JSON yet; the last valid value is kept.',
+  )
   fireEvent.change(box, { target: { value: '["10.1.0.0/16"]' } })
   expect(onChange).toHaveBeenCalledWith(['10.1.0.0/16'])
   fireEvent.change(box, { target: { value: '' } })
@@ -77,4 +83,66 @@ test('a panel mounts on first view and stays mounted after', () => {
   fireEvent.click(screen.getByRole('tab', { name: 'Beta' }))
   fireEvent.click(screen.getByRole('tab', { name: 'Alpha' }))
   expect(screen.getByText('second')).toBeInTheDocument()
+})
+
+test('select groups options under their group label', () => {
+  render(
+    <Select
+      label="Type"
+      value=""
+      onChange={() => {}}
+      options={[
+        { value: 'rg', label: 'Resource group', group: 'foundation' },
+        { value: 'aks', label: 'AKS', group: 'compute' },
+      ]}
+    />,
+  )
+  expect(screen.getByRole('group', { name: 'foundation' })).toContainElement(
+    screen.getByRole('option', { name: 'Resource group' }),
+  )
+})
+
+test('a dialog returns focus to its opener, or to the fallback when the opener is gone', () => {
+  function Harness({ removeOpener }: { removeOpener: boolean }) {
+    const [open, setOpen] = useState(false)
+    const [gone, setGone] = useState(false)
+    return (
+      <>
+        {!gone && <button onClick={() => setOpen(true)}>Open</button>}
+        <h2 tabIndex={-1} id="fallback">
+          Fallback
+        </h2>
+        {open && (
+          <Dialog
+            title="Pick"
+            open
+            onClose={() => setOpen(false)}
+            returnFocus={() => document.getElementById('fallback')?.focus()}
+          >
+            <button
+              onClick={() => {
+                if (removeOpener) setGone(true)
+                setOpen(false)
+              }}
+            >
+              Done
+            </button>
+          </Dialog>
+        )}
+      </>
+    )
+  }
+  const { unmount } = render(<Harness removeOpener={false} />)
+  const opener = screen.getByRole('button', { name: 'Open' })
+  opener.focus()
+  fireEvent.click(opener)
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+  expect(opener).toHaveFocus()
+  unmount()
+
+  render(<Harness removeOpener />)
+  screen.getByRole('button', { name: 'Open' }).focus()
+  fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+  expect(screen.getByRole('heading', { name: 'Fallback' })).toHaveFocus()
 })

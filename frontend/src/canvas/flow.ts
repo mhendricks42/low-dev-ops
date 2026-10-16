@@ -1,5 +1,5 @@
 // Model -> React Flow graph. Containment (parent) is nesting; every other ref is an edge.
-import type { Edge, Node } from '@xyflow/react'
+import type { Edge, Node, NodeChange } from '@xyflow/react'
 import { entryFor, refOptions } from '../model/catalog'
 import type { CatalogEntry } from '../model/catalog-entry'
 import type { Project, Ref } from '../model/project'
@@ -101,4 +101,26 @@ export function connectionOptions(
           .map((ref) => ({ id: r.id, ref }))
       : []
   })
+}
+
+export type ConnectAction =
+  | { kind: 'none' }
+  | { kind: 'set'; choice: { id: string; ref: Ref } }
+  | { kind: 'choose'; choices: { id: string; ref: Ref }[] }
+
+// One allowed meaning: set it. Several: ask which. None: the connection is refused.
+export function connectAction(choices: { id: string; ref: Ref }[]): ConnectAction {
+  const [only] = choices
+  if (choices.length === 1 && only) return { kind: 'set', choice: only }
+  if (choices.length > 1) return { kind: 'choose', choices }
+  return { kind: 'none' }
+}
+
+// Node moves to persist: finished drags and keyboard moves (React Flow marks both dragging=false).
+export function finishedMoves(changes: NodeChange[]): { id: string; x: number; y: number }[] {
+  return changes.flatMap((c) =>
+    c.type === 'position' && c.dragging === false && c.position && !c.id.startsWith('custom:')
+      ? [{ id: c.id, x: c.position.x, y: c.position.y }]
+      : [],
+  )
 }

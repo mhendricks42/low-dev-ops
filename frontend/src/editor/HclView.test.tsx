@@ -82,5 +82,48 @@ test('discard drops edits and shows the generated HCL again', async () => {
   fireEvent.change(editor, { target: { value: 'scratch' } })
   fireEvent.click(screen.getByRole('button', { name: 'Discard edits' }))
   expect(editor).toHaveValue('generated')
-  expect(screen.getByRole('button', { name: 'Save HCL' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Save HCL' })).toHaveAttribute('aria-disabled', 'true')
+})
+
+function Rename() {
+  const { dispatch, project } = useStore()
+  return (
+    <button
+      onClick={() =>
+        dispatch({
+          type: 'replace',
+          project: { ...project, meta: { ...project.meta, name: 'other' } },
+        })
+      }
+    >
+      Change model
+    </button>
+  )
+}
+
+test('unsaved edits survive a model change until saved or discarded', async () => {
+  let n = 0
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/api/catalog') return Response.json({ entries: CATALOG })
+      if (url === '/api/hcl/generate') return Response.json({ hcl: `generated ${++n}` })
+      if (init?.method === 'PUT') return Response.json({ issues: [] })
+      return Response.json({ project: project() })
+    }),
+  )
+  render(
+    <ProjectProvider name="demo">
+      <Rename />
+      <HclView Editor={TextEditor} />
+    </ProjectProvider>,
+  )
+  const editor = await screen.findByLabelText('HCL source')
+  await waitFor(() => expect(editor).toHaveValue('generated 1'))
+  fireEvent.change(editor, { target: { value: 'my draft' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Change model' }))
+  await waitFor(() => expect(n).toBe(2)) // the model change regenerated the HCL…
+  expect(editor).toHaveValue('my draft') // …but the draft is kept
+  fireEvent.click(screen.getByRole('button', { name: 'Discard edits' }))
+  expect(editor).toHaveValue('generated 2')
 })

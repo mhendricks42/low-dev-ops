@@ -121,7 +121,6 @@ Every change triggers a debounced `PUT` (save) and a `POST /api/hcl/generate`. A
   - `monaco-editor` and `@monaco-editor/react`
   - dev: `@axe-core/playwright` and `json-schema-to-typescript`
 - **Root:**
-  - `.gitignore` (`workspace/`)
   - `Makefile`: `make schema` also runs `npm run types`
   - `docs/specs/M3/` and `frontend/CLAUDE.md` (new commands)
 

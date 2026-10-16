@@ -6,9 +6,9 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 test.use({ viewport: { width: 1280, height: 2400 } })
 
 const unique = (prefix: string) => `${prefix}-${Date.now()}`
-const RG = 'Resource group (foundation)'
-const VNET = 'Virtual network (foundation)'
-const NSG = 'Network security group (foundation)'
+const RG = 'Resource group'
+const VNET = 'Virtual network'
+const NSG = 'Network security group'
 
 async function open(page: Page, name: string) {
   await page.goto(`/?project=${name}`)
@@ -21,7 +21,7 @@ async function addResource(page: Page, type: string) {
 }
 
 async function saved(page: Page) {
-  await expect(page.getByRole('status').first()).toHaveText('All changes saved')
+  await expect(page.getByRole('status').filter({ hasText: 'All changes saved' })).toBeVisible()
 }
 
 const editor = (page: Page) => page.locator('.monaco-editor .view-lines')
@@ -113,8 +113,17 @@ test('EC3: saving invalid HCL shows an inline error and leaves the model unchang
   )
 })
 
+// Press Tab until the target has focus: proves it is reachable in the tab order.
+async function tabTo(page: Page, target: Locator, max = 120) {
+  for (let i = 0; i < max; i++) {
+    if (await target.evaluate((el) => el === document.activeElement)) return
+    await page.keyboard.press('Tab')
+  }
+  throw new Error('not reachable with Tab')
+}
+
 async function chooseByKeyboard(page: Page, select: Locator, label: string) {
-  await select.focus()
+  await tabTo(page, select)
   for (let i = 0; i < 30; i++) {
     if ((await select.evaluate((el: HTMLSelectElement) => el.selectedOptions[0]?.text)) === label)
       return
@@ -135,33 +144,44 @@ test('EC4: keyboard only, create resources and add a reference', async ({ page }
         true,
       )
   })
+  const addButton = page.getByRole('button', { name: 'Add resource' })
 
-  for (const type of [RG, VNET, NSG]) {
+  for (const [type, id] of [
+    ['Resource group', 'rg1'],
+    ['Virtual network', 'vnet1'],
+    ['Network security group', 'nsg1'],
+  ] as const) {
+    await page.keyboard.press('Shift+Tab') // restart from the top for each pass
     await chooseByKeyboard(page, page.getByLabel('Resource type'), type)
-    await page.getByRole('button', { name: 'Add resource' }).focus()
+    await tabTo(page, addButton)
     await page.keyboard.press('Enter')
+    await expect(page.getByRole('heading', { level: 3, name: new RegExp(`^${id} `) })).toBeVisible()
+    await expect(addButton).toBeFocused() // focus stays put; the addition is announced
+    await expect(page.getByText(`Added ${id} (${type}).`)).toBeAttached()
   }
   await saved(page)
 
-  await page.getByRole('tab', { name: 'Wizard' }).focus()
+  await tabTo(page, page.getByRole('tab', { name: 'Wizard' }))
   await page.keyboard.press('ArrowRight')
   await expect(page.getByRole('tab', { name: 'Canvas' })).toHaveAttribute('aria-selected', 'true')
 
-  await page.getByRole('button', { name: 'Add reference to vnet1' }).focus()
+  const opener = page.getByRole('button', { name: 'Add reference to vnet1' })
+  await tabTo(page, opener)
   await page.keyboard.press('Enter')
   const dialog = page.getByRole('dialog', { name: 'Add a reference to vnet1' })
   await expect(dialog).toBeVisible()
+  await expect(dialog.getByLabel('Reference')).toBeFocused() // modal focuses its first control
   await chooseByKeyboard(page, dialog.getByLabel('Reference'), 'vnet1.parent_id ← rg1.resource_id')
-  await page.keyboard.press('Tab')
-  await expect(dialog.getByRole('button', { name: 'Add reference' })).toBeFocused()
+  await tabTo(page, dialog.getByRole('button', { name: 'Add reference' }), 3)
   await page.keyboard.press('Enter')
   await expect(dialog).toBeHidden()
+  await expect(opener).toBeFocused() // focus returns to the opener
 
   await expect(page.getByRole('row', { name: /vnet1/ })).toContainText(
     'parent_id ← rg1.resource_id',
   )
   await saved(page)
-  await page.getByRole('tab', { name: 'Canvas' }).focus()
+  await tabTo(page, page.getByRole('tab', { name: 'Canvas' }))
   await page.keyboard.press('ArrowRight')
   await expect(editor(page)).toContainText('parent_id = module.rg1.resource_id')
   expect(
@@ -179,8 +199,12 @@ async function expectNoViolations(page: Page) {
 }
 
 test('EC5: axe-core finds no WCAG 2.2 AA violations on any page', async ({ page }) => {
-  await open(page, unique('ec5'))
+  const name = unique('ec5')
+  await open(page, name)
   await expectNoViolations(page) // empty project
+  await page.getByRole('button', { name: 'Add resource' }).click()
+  await expect(page.getByLabel('Resource type')).toHaveAccessibleDescription(/choose a type first/)
+  await expectNoViolations(page) // error state
   await rgAndVnet(page)
   await addResource(page, NSG)
   await saved(page)
@@ -203,4 +227,36 @@ test('EC5: axe-core finds no WCAG 2.2 AA violations on any page', async ({ page 
   await expect(editor(page)).not.toContainText('= null') // unset ref inputs are omitted, not null
   await expectNoViolations(page)
   await page.screenshot({ path: '../docs/specs/M3/hcl.png', fullPage: true })
+
+  // Error state in the HCL view, then a valid save that adds custom HCL.
+  const project = (await (await page.request.get(`/api/projects/${name}`)).json()).project
+  const hcl = (await (await page.request.post('/api/hcl/generate', { data: { project } })).json())
+    .hcl
+  await replaceHcl(page, hcl + '\nlocals {\n')
+  await page.getByRole('button', { name: 'Save HCL' }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'HCL not saved' })).toBeVisible()
+  await expectNoViolations(page)
+  await replaceHcl(page, hcl + '\nlocals {\n  note = "custom"\n}\n')
+  await page.getByRole('button', { name: 'Save HCL' }).click()
+  await expect(page.getByText('HCL saved and in sync with the model.')).toBeVisible()
+  await page.getByRole('tab', { name: 'Wizard' }).click()
+  await expect(page.getByText('Custom HCL custom_1')).toBeVisible()
+  await expectNoViolations(page) // custom HCL shown read-only
+})
+
+test.describe('reflow at 320 CSS pixels (WCAG 1.4.10)', () => {
+  test.use({ viewport: { width: 320, height: 800 } })
+
+  test('no panel scrolls sideways', async ({ page }) => {
+    await open(page, unique('reflow'))
+    await rgAndVnet(page)
+    for (const tab of ['Wizard', 'Canvas', 'HCL']) {
+      await page.getByRole('tab', { name: tab }).click()
+      await page.waitForTimeout(300)
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      )
+      expect(overflow, `${tab} overflows by ${overflow}px`).toBeLessThanOrEqual(0)
+    }
+  })
 })
