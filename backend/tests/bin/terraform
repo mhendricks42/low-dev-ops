@@ -30,6 +30,7 @@ def main(args: list[str]) -> int:
         return 1
     files = [a for a in args[1:] if not a.startswith("-")]
     if command == "init":
+        Path(".terraform").mkdir(exist_ok=True)
         print("Initializing the backend...")
         print("Terraform has been successfully initialized!")
         return 0
@@ -54,6 +55,9 @@ def main(args: list[str]) -> int:
     if command == "apply":
         Path(files[0]).read_bytes()
         print("Apply complete! Resources: 5 added, 0 changed, 0 destroyed.")
+        return 0
+    if command == "destroy":  # only scripts/e2e-sandbox.sh's cleanup; the app never destroys
+        print("Destroy complete! Resources: 5 destroyed.")
         return 0
     print(f"fake terraform: unsupported command {args}", file=sys.stderr)
     return 2
