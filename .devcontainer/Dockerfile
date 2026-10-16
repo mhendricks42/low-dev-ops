@@ -39,3 +39,6 @@ ENV UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin
 RUN pip install --no-cache-dir "pip==${PIP_VERSION}" "uv==${UV_VERSION}" \
  && uv tool install --no-cache "checkov==${CHECKOV_VERSION}" \
  && uv tool install --no-cache "azure-cli==${AZURE_CLI_VERSION}"
+
+# The guardrail tests that run the real scanners must not skip here (M4).
+ENV LOWDEVOPS_REQUIRE_SCANNERS=1
