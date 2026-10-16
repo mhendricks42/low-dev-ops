@@ -37,7 +37,7 @@ export function toFlow(
       data: { label: `${r.id} · ${title}` },
       ariaLabel: `${r.id}, ${title}${kids.length ? `, contains ${kids.map((k) => k.id).join(', ')}` : ''}`,
       style: { width, height },
-      type: kids.length ? 'group' : 'default',
+      type: 'default', // 'group' nodes draw no label; a sized default node still holds children
     })
     top += height + GAP
     kids.forEach((k, i) => {

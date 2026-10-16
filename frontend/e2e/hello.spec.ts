@@ -6,9 +6,8 @@ test('health endpoint returns 200', async ({ request }) => {
   expect(await response.json()).toEqual({ status: 'ok' })
 })
 
-test('hello page renders with a live API', async ({ page }) => {
-  await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Hello, LowDevOps' })).toBeVisible()
-  await expect(page.getByRole('status')).toHaveText('API: ok')
-  await page.screenshot({ path: '../docs/specs/M0/hello.png' })
+test('the app loads a project from the API', async ({ page }) => {
+  await page.goto(`/?project=hello-${Date.now()}`)
+  await expect(page.getByRole('heading', { level: 1, name: /^LowDevOps: hello-/ })).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Wizard' })).toHaveAttribute('aria-selected', 'true')
 })
