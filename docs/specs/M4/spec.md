@@ -38,14 +38,14 @@ class Finding:
 
 ## Checks (`backend/app/guardrails/`)
 
-| Module | Checks | Severity |
-| --- | --- | --- |
-| `naming.py` | **High** if a `fill: name` input breaks its type's limits: `LDO_NAME_LENGTH`, `LDO_NAME_CHARS`. **Low** if it doesn't match the name the project pattern gives: `LDO_NAME_PATTERN` | high / low |
-| `tags.py` | Every resource whose entry has a `tags` input must end up with each key in `project.required_tags` (project tags merged with the resource's own): `LDO_TAG_MISSING` | medium |
+| Module        | Checks                                                                                                                                                                                                                                            | Severity      |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `naming.py`   | **High** if a `fill: name` input breaks its type's limits: `LDO_NAME_LENGTH`, `LDO_NAME_CHARS`. **Low** if it doesn't match the name the project pattern gives: `LDO_NAME_PATTERN`                                                                | high / low    |
+| `tags.py`     | Every resource whose entry has a `tags` input must end up with each key in `project.required_tags` (project tags merged with the resource's own): `LDO_TAG_MISSING`                                                                               | medium        |
 | `conftest.py` | Runs `conftest test --output json -p policies/conftest -` on the project JSON enriched with each resource's catalog module. `deny` rules are high and `warn` rules are medium. Each rule's id comes from its message prefix, e.g. `LDO_ST_TLS: …` | high / medium |
-| `checkov.py` | `checkov -d <tmp> --framework terraform -o json --quiet`, plus `-f plan.json --framework terraform_plan` when a plan is given. Severity comes from `policies/severity.yaml` (check id → severity); unmapped checks default to medium | from map |
-| `trivy.py` | `trivy config --format json <tmp>`, which also reads `plan.json` when it is in the temp dir. Trivy's own severity is used, `UNKNOWN` maps to medium | from Trivy |
-| `run.py` | `check(project, catalog, plan_json=None) -> Report` runs everything and applies waivers | — |
+| `checkov.py`  | `checkov -d <tmp> --framework terraform -o json --quiet`, plus `-f plan.json --framework terraform_plan` when a plan is given. Severity comes from `policies/severity.yaml` (check id → severity); unmapped checks default to medium              | from map      |
+| `trivy.py`    | `trivy config --format json <tmp>`, which also reads `plan.json` when it is in the temp dir. Trivy's own severity is used, `UNKNOWN` maps to medium                                                                                               | from Trivy    |
+| `run.py`      | `check(project, catalog, plan_json=None) -> Report` runs everything and applies waivers                                                                                                                                                           | —             |
 
 - **Subprocess rules:** scanners run on argument lists (never `shell=True`) with a 120 s timeout each. They run in a fresh temp dir that holds only the generated `main.tf` and, if given, `plan.json`. The temp dir is deleted afterwards and nothing touches the workspace. A module address `module.<id>` in scanner output is mapped back to the resource id.
 - **Starter policies** in `policies/conftest/*.rego`, each with Conftest unit tests (`conftest verify`):
@@ -131,13 +131,13 @@ The values come from Microsoft's "Naming rules and restrictions for Azure resour
 
 ## Exit criteria → proof
 
-| Criterion | Proof |
-| --- | --- |
-| A fixture with a high finding gives `apply_allowed: false` | `test_guardrails.py::test_high_finding_blocks_apply`, using fixture `high` (storage account with TLS 1.0, a Conftest `deny`). It also checks that a waiver on that finding lands in `ignored_waivers` |
-| A fixture with a waived medium finding gives `apply_allowed: true` and lists the waiver | `test_waived_medium_allows_apply`, using fixture `waived-medium` (a missing `owner` tag with a waiver) |
-| A clean fixture gives zero findings | `test_clean_fixture_has_no_findings`, using fixture `clean` (project and plan) |
-| Generated names match the CAF pattern and each type's length and character limits | `tests/guardrails/test_naming.py` checks every catalog entry against `naming-cases.json`, plus property-style cases (long workload, uppercase, symbols); `frontend/src/model/naming.test.ts` runs the same vectors |
-| UI: keyboard-only waive flow, and axe-core reports 0 violations | `e2e/m4.spec.ts`: run checks, waive a medium finding by keyboard, check that the status line and the waived list update, and run axe on the empty, findings, dialog and waived states |
+| Criterion                                                                               | Proof                                                                                                                                                                                                              |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A fixture with a high finding gives `apply_allowed: false`                              | `test_guardrails.py::test_high_finding_blocks_apply`, using fixture `high` (storage account with TLS 1.0, a Conftest `deny`). It also checks that a waiver on that finding lands in `ignored_waivers`              |
+| A fixture with a waived medium finding gives `apply_allowed: true` and lists the waiver | `test_waived_medium_allows_apply`, using fixture `waived-medium` (a missing `owner` tag with a waiver)                                                                                                             |
+| A clean fixture gives zero findings                                                     | `test_clean_fixture_has_no_findings`, using fixture `clean` (project and plan)                                                                                                                                     |
+| Generated names match the CAF pattern and each type's length and character limits       | `tests/guardrails/test_naming.py` checks every catalog entry against `naming-cases.json`, plus property-style cases (long workload, uppercase, symbols); `frontend/src/model/naming.test.ts` runs the same vectors |
+| UI: keyboard-only waive flow, and axe-core reports 0 violations                         | `e2e/m4.spec.ts`: run checks, waive a medium finding by keyboard, check that the status line and the waived list update, and run axe on the empty, findings, dialog and waived states                              |
 
 **Unit tests and stub scanners.** API and unit tests run against the stub scanners on `PATH`. Each stub replays recorded JSON chosen by a fixture marker, so `make check` needs no network and no real scanners.
 
