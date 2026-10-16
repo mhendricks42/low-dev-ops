@@ -38,7 +38,8 @@ def uses_refs(node: object) -> Iterator[str]:
 
 def unpinned(ref: str) -> bool:
     if ref.startswith("./"):
-        return False  # local action: its own action.yml is scanned
+        # Only local actions in the scanned folder; their own action.yml is checked too.
+        return not ref.startswith("./.github/actions/")
     if ref.startswith("docker://"):
         return not DOCKER_PINNED.match(ref)
     return not PINNED.match(ref)
@@ -64,6 +65,7 @@ def test_every_action_is_pinned_to_a_sha() -> None:
         "jobs:\n  a:\n    uses: evil/repo/.github/workflows/x.yml@main\n",
         "runs:\n  steps:\n    - uses: docker://alpine:latest\n",
         "runs:\n  steps:\n    - uses: actions/checkout@v7\n",
+        "jobs: {a: {steps: [{uses: ./tools/unscanned}]}}",
     ],
 )
 def test_every_spelling_of_an_unpinned_action_is_caught(text: str) -> None:
@@ -71,7 +73,7 @@ def test_every_spelling_of_an_unpinned_action_is_caught(text: str) -> None:
 
 
 def test_local_and_digest_pinned_refs_are_accepted(tmp_path: Path) -> None:
-    refs = ["./x", f"o/r@{'a' * 40}", f"docker://i@sha256:{'b' * 64}"]
+    refs = ["./.github/actions/x", f"o/r@{'a' * 40}", f"docker://i@sha256:{'b' * 64}"]
     assert not any(unpinned(ref) for ref in uses_refs({"steps": [{"uses": r} for r in refs]}))
     (tmp_path / "workflows").mkdir()
     (tmp_path / "actions" / "x").mkdir(parents=True)

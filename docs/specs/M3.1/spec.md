@@ -16,7 +16,7 @@ M3 (PR #8) merged with four follow-ups filed as issues. M3.1 closes them in one 
 - **Files:** `.github/workflows/ci.yml` and `.github/workflows/pr-title.yml`. There are 11 tag-pinned references across 6 actions: checkout, setup-uv, setup-node, upload-artifact, devcontainers/ci and action-semantic-pull-request.
 - **Pinning:** each becomes `owner/action@<40-hex sha> # <tag>`. The SHA comes from `git ls-remote https://github.com/<owner>/<action> refs/tags/<tag>`, using the peeled `^{}` commit for annotated tags.
 - **Updates:** a new `.github/dependabot.yml` (ecosystem `github-actions`, weekly) keeps the pins current.
-- **Guard:** `backend/tests/test_workflow_pins.py` parses (with `yaml.safe_load`) every workflow (`*.yml` and `*.yaml`) and every local action (`.github/actions/**/action.y*ml`), walks every `uses` key, and fails on any remote action not pinned to a 40-hex SHA or any `docker://` image not pinned to a `sha256` digest. Local `./` actions are allowed because their own `action.yml` is scanned. Parametrized cases cover flow mappings, quoted keys, reusable workflows and composite steps. It runs in `make check`.
+- **Guard:** `backend/tests/test_workflow_pins.py` parses (with `yaml.safe_load`) every workflow (`*.yml` and `*.yaml`) and every local action (`.github/actions/**/action.y*ml`), walks every `uses` key, and fails on any remote action not pinned to a 40-hex SHA or any `docker://` image not pinned to a `sha256` digest. Local actions are allowed only under `./.github/actions/`, whose `action.yml` files are scanned. Parametrized cases cover flow mappings, quoted keys, reusable workflows and composite steps. It runs in `make check`.
 
 ## 2. Close the symlink race (#10)
 
