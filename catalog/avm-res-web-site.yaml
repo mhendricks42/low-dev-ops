@@ -6,6 +6,8 @@ version: 0.24.1
 title: App Service or Function App
 category: compute
 cafAbbreviation: app
+# Azure name limits (learn.microsoft.com resource-name-rules).
+nameRules: { min: 2, max: 60, chars: "a-zA-Z0-9-" }
 inputs:
   name: { tier: basic, fill: name, description: "App name, globally unique. Use the func prefix for Function Apps." }
   location: { tier: basic, fill: location, description: "Azure region." }

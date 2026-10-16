@@ -1,6 +1,8 @@
 """Exit criterion: every entry's basic inputs have CAF defaults, and its allowed refs point at
 real outputs. Parametrized over the real catalog, so a new entry is covered automatically."""
 
+import re
+
 import pytest
 
 from app.catalog.load import CATALOG_DIR, load_catalog
@@ -82,3 +84,17 @@ def test_hidden_telemetry_is_off(module: str) -> None:
 def test_fixture_pins_exist_in_catalog(name: str) -> None:
     for resource in load_project(name).resources:
         assert CATALOG.get(resource.catalog_ref), f"{name}: {resource.catalog_ref} not in catalog"
+
+
+@pytest.mark.parametrize("module", MODULES)
+def test_every_named_entry_declares_name_rules(module: str) -> None:
+    # M4: names are generated and checked against each resource type's Azure limits.
+    entry = _entry(module)
+    assert any(spec.fill == "name" for spec in entry.inputs.values())
+    rules = entry.name_rules
+    assert rules is not None
+    assert 1 <= rules.min <= rules.max
+    allowed = re.compile(f"^[{rules.chars}]+$")  # a valid character class
+    if "name" in entry.example:
+        name = str(entry.example["name"])
+        assert allowed.match(name) and rules.min <= len(name) <= rules.max

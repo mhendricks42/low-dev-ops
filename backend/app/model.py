@@ -119,6 +119,8 @@ class Project(_Model):
     subscription: Subscription
     naming: Naming
     tags: dict[str, str] = {}
+    # Tag keys every taggable resource must carry (M4 guardrails). CAF minimum by default.
+    required_tags: list[str] = ["env", "owner"]
     resources: list[Resource] = []
     custom_hcl: list[CustomHcl] = []
     waivers: list[Waiver] = []

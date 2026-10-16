@@ -5,6 +5,8 @@ version: 0.10.0
 title: Storage account
 category: foundation
 cafAbbreviation: st
+# Azure name limits (learn.microsoft.com resource-name-rules).
+nameRules: { min: 3, max: 24, chars: "a-z0-9", lowercase: true }
 inputs:
   name: { tier: basic, fill: name, description: "Account name: 3-24 lowercase letters and digits, globally unique." }
   location: { tier: basic, fill: location, description: "Azure region." }

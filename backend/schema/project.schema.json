@@ -257,6 +257,17 @@
     "naming": {
       "$ref": "#/$defs/Naming"
     },
+    "requiredTags": {
+      "default": [
+        "env",
+        "owner"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "title": "Requiredtags",
+      "type": "array"
+    },
     "resources": {
       "default": [],
       "items": {

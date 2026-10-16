@@ -11,6 +11,10 @@ export type Description = string | null
 export type Fill = ('name' | 'location' | 'tenant_id') | null
 export type Tier = 'basic' | 'advanced' | 'hidden'
 export type Module = string
+export type Chars = string
+export type Lowercase = boolean
+export type Max = number
+export type Min = number
 export type Outputs = string[]
 export type Rawreason = string | null
 export type From = string
@@ -27,6 +31,7 @@ export interface CatalogEntry {
   example?: Example
   inputs: Inputs
   module: Module
+  nameRules?: NameRules | null
   outputs: Outputs
   rawReason?: Rawreason
   refs?: Refs
@@ -51,6 +56,12 @@ export interface InputSpec {
   description?: Description
   fill?: Fill
   tier: Tier
+}
+export interface NameRules {
+  chars: Chars
+  lowercase?: Lowercase
+  max: Max
+  min: Min
 }
 export interface AllowedRef {
   from: From

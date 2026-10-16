@@ -5,6 +5,8 @@ version: 0.22.3
 title: Virtual network
 category: foundation
 cafAbbreviation: vnet
+# Azure name limits (learn.microsoft.com resource-name-rules).
+nameRules: { min: 2, max: 64, chars: "a-zA-Z0-9._-" }
 inputs:
   name: { tier: basic, fill: name, description: "Virtual network name." }
   location: { tier: basic, fill: location, description: "Azure region." }

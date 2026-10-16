@@ -5,6 +5,8 @@ version: 0.9.0
 title: Container app
 category: compute
 cafAbbreviation: ca
+# Azure name limits (learn.microsoft.com resource-name-rules).
+nameRules: { min: 2, max: 32, chars: "a-z0-9-", lowercase: true }
 inputs:
   name: { tier: basic, fill: name, description: "App name: lowercase letters, digits and dashes, up to 32." }
   location: { tier: basic, fill: location, description: "Azure region." }
