@@ -1,3 +1,4 @@
+import type { CheckReport } from './checks/types'
 import type { CatalogEntry } from './model/catalog-entry'
 import type { Project } from './model/project'
 
@@ -42,6 +43,8 @@ export const api = {
     }),
   generate: (project: Project) =>
     call<{ hcl: string }>('POST', '/api/hcl/generate', { project }).then((d) => d.hcl),
+  check: (project: Project) =>
+    call<CheckReport>('POST', '/api/guardrails/check', { project, plan: null }),
   parse: (hcl: string, previous: Project) =>
     call<{ project: Project }>('POST', '/api/hcl/parse', { hcl, previous }).then((d) => d.project),
 }

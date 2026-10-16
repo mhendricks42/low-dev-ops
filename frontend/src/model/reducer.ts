@@ -1,4 +1,4 @@
-import type { Project, Ref, Resource } from './project'
+import type { Project, Ref, Resource, Waiver } from './project'
 
 // The ref input that means "contained in": setting it also sets `parent`, drawn as nesting.
 export const PARENT_INPUT = 'parent_id'
@@ -11,6 +11,8 @@ export type Action =
   | { type: 'setRef'; id: string; ref: Ref }
   | { type: 'removeRef'; id: string; input: string }
   | { type: 'moveNode'; id: string; x: number; y: number }
+  | { type: 'addWaiver'; waiver: Waiver }
+  | { type: 'removeWaiver'; findingId: string; resource: string }
 
 function update(p: Project, id: string, change: (r: Resource) => Resource): Project {
   return { ...p, resources: (p.resources ?? []).map((r) => (r.id === id ? change(r) : r)) }
@@ -62,5 +64,24 @@ export function reducer(p: Project, action: Action): Project {
       return update(p, action.id, (r) => withoutRef(r, action.input))
     case 'moveNode':
       return update(p, action.id, (r) => ({ ...r, layout: { x: action.x, y: action.y } }))
+    case 'addWaiver': {
+      // One waiver per (finding, resource): a new one replaces the old, keeping its place.
+      const same = (w: Waiver) =>
+        w.findingId === action.waiver.findingId && w.resource === action.waiver.resource
+      const waivers = p.waivers ?? []
+      return {
+        ...p,
+        waivers: waivers.some(same)
+          ? waivers.map((w) => (same(w) ? action.waiver : w))
+          : [...waivers, action.waiver],
+      }
+    }
+    case 'removeWaiver':
+      return {
+        ...p,
+        waivers: (p.waivers ?? []).filter(
+          (w) => !(w.findingId === action.findingId && w.resource === action.resource),
+        ),
+      }
   }
 }

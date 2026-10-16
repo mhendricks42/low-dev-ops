@@ -91,3 +91,22 @@ test('replace swaps the whole project', () => {
   const next = project()
   expect(reducer(withRgAndVnet(), { type: 'replace', project: next })).toBe(next)
 })
+
+test('addWaiver replaces a waiver for the same finding and resource; removeWaiver drops it', () => {
+  const w = {
+    findingId: 'LDO_ST_PUBLIC',
+    resource: 'st1',
+    reason: 'first reason',
+    by: 'a',
+    at: 't1',
+  }
+  let p = reducer(project(), { type: 'addWaiver', waiver: w })
+  p = reducer(p, { type: 'addWaiver', waiver: { ...w, reason: 'second reason' } })
+  p = reducer(p, { type: 'addWaiver', waiver: { ...w, resource: 'st2' } })
+  expect(p.waivers?.map((x) => `${x.resource}:${x.reason}`)).toEqual([
+    'st1:second reason',
+    'st2:first reason',
+  ])
+  p = reducer(p, { type: 'removeWaiver', findingId: 'LDO_ST_PUBLIC', resource: 'st1' })
+  expect(p.waivers?.map((x) => x.resource)).toEqual(['st2'])
+})
