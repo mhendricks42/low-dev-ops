@@ -1,6 +1,6 @@
 # LowDevOps MVP roadmap
 
-There are seven milestones, each one PR. Each exit criterion is a command or test that passes or fails, and a milestone is done when all of its criteria pass in CI (M5's sandbox gate is run by a human). Specs for each milestone go in `docs/specs/M<n>/`.
+There are seven milestones, each one PR, plus point releases such as M3.1 for follow-ups. Each exit criterion is a command or test that passes or fails, and a milestone is done when all of its criteria pass in CI (M5's sandbox gate is run by a human). Specs for each milestone go in `docs/specs/M<n>/`.
 
 **Cut order if time slips:** drop AKS and Functions from the catalog first, then move landing-zone patterns (M6) to v0.2. Guardrails are never cut.
 
@@ -42,6 +42,17 @@ There are seven milestones, each one PR. Each exit criterion is a command or tes
   - Saving invalid HCL → an inline error appears and the model is unchanged.
   - Keyboard-only test: create a resource and add a reference with no mouse events.
   - axe-core reports 0 WCAG 2.2 AA violations on every page.
+
+## M3.1 — M3 follow-ups
+
+- **Scope:** close the four follow-ups from M3 (#9–#12): pin CI actions by SHA, remove the symlink check-then-write race, budget the Monaco chunk, and stop the save status announcing on every typing pause.
+- **Out of scope:** new features, and a multi-user threat model.
+- **Exit criteria (`make check` + Playwright):**
+  - A test fails if any workflow `uses:` an action that is not pinned to a 40-hex commit SHA.
+  - A test swaps the project directory for a symlink between opening it and writing to it, and the files still land inside the workspace.
+  - A size check fails if the gzipped Monaco chunk exceeds its budget.
+  - Typing a series of edits in the wizard leaves the live save status text unchanged while `aria-busy` tracks pending saves. A failed save still reads "Not saved".
+  - The M3 Playwright suite, including axe-core and 320 px reflow, still passes.
 
 ## M4 — Guardrails (week 3)
 
