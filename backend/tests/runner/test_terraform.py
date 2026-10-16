@@ -54,10 +54,9 @@ def test_plan_runs_terraform_in_the_project_with_the_backend_and_records_the_pla
         record["planSha256"] == hashlib.sha256((project / "plan.tfplan").read_bytes()).hexdigest()
     )
     assert record["modelSha256"] == hashlib.sha256(model).hexdigest()
-    assert record["summary"] == {
-        "create": 5, "update": 0, "delete": 0, "replace": 0, "destroys": [],
-        "text": "5 to add, 0 to change, 0 to destroy",
-    }  # fmt: skip
+    assert record["summary"]["text"] == "5 to add, 0 to change, 0 to destroy"
+    assert record["summary"]["destroys"] == []
+    assert [c["action"] for c in record["summary"]["changes"]] == ["create"] * 5
     guardrails = record["guardrails"]
     assert isinstance(guardrails, dict) and guardrails["apply_allowed"] is True
     assert guardrails["scanners"] == ["naming", "tags", "conftest", "checkov", "trivy"]
@@ -122,7 +121,9 @@ def test_summary_counts_replaces_and_lists_what_is_destroyed() -> None:
         {"address": "g", "mode": "data", "change": {"actions": ["read"]}},
     ]
     summary = terraform.summarize({"resource_changes": changes})
-    assert (summary.create, summary.update, summary.delete, summary.replace) == (1, 1, 1, 2)
+    assert [(c.address, c.action) for c in summary.changes] == [
+        ("a", "create"), ("b", "update"), ("c", "delete"), ("d", "replace"), ("e", "replace"),
+    ]  # fmt: skip
     assert summary.destroys == ["c", "d", "e"]
     assert summary.text() == "3 to add, 1 to change, 3 to destroy"
-    assert terraform.summarize(CLEAN_PLAN).create == 5
+    assert terraform.summarize(CLEAN_PLAN).count("create") == 5

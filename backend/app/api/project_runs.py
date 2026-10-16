@@ -53,7 +53,11 @@ def current(name: Name) -> dict[str, Any]:
             "modelSha256": record.model_sha256,
             "subscriptionId": record.subscription_id,
             "createdAt": record.created_at,
-            "summary": {**asdict(record.summary), "text": record.summary.text()},
+            "summary": {
+                "changes": [asdict(c) for c in record.summary.changes],
+                "destroys": record.summary.destroys,
+                "text": record.summary.text(),
+            },
             "guardrails": report_json(record.report),
         },
     }

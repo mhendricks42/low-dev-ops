@@ -47,17 +47,27 @@ provider "azurerm" {
 
 
 @dataclass(frozen=True)
+class Change:
+    address: str
+    action: str  # create, update, delete or replace
+
+
+@dataclass(frozen=True)
 class Summary:
-    create: int = 0
-    update: int = 0
-    delete: int = 0
-    replace: int = 0
-    destroys: list[str] = field(default_factory=list)  # addresses deleted or replaced
+    changes: list[Change] = field(default_factory=list)  # in plan order, no-ops left out
+
+    def count(self, action: str) -> int:
+        return sum(1 for c in self.changes if c.action == action)
+
+    @property
+    def destroys(self) -> list[str]:
+        return [c.address for c in self.changes if c.action in ("delete", "replace")]
 
     def text(self) -> str:
+        replace = self.count("replace")
         return (
-            f"{self.create + self.replace} to add, {self.update} to change, "
-            f"{self.delete + self.replace} to destroy"
+            f"{self.count('create') + replace} to add, {self.count('update')} to change, "
+            f"{self.count('delete') + replace} to destroy"
         )
 
 
@@ -86,22 +96,19 @@ def plan_record(name: str) -> PlanRecord | None:
 
 
 def summarize(plan: dict[str, Any]) -> Summary:
-    counts = {"create": 0, "update": 0, "delete": 0, "replace": 0}
-    destroys: list[str] = []
+    changes: list[Change] = []
     for change in plan.get("resource_changes") or []:
         if not isinstance(change, dict) or change.get("mode") != "managed":
             continue
         actions = set((change.get("change") or {}).get("actions") or [])
         if {"create", "delete"} <= actions:
-            kind = "replace"
-        elif actions & counts.keys():
-            kind = next(iter(actions & counts.keys()))
+            action = "replace"
+        elif len(actions) == 1 and actions <= {"create", "update", "delete"}:
+            action = actions.pop()
         else:
             continue  # no-op, read
-        counts[kind] += 1
-        if kind in ("delete", "replace"):
-            destroys.append(str(change.get("address")))
-    return Summary(**counts, destroys=destroys)
+        changes.append(Change(address=str(change.get("address")), action=action))
+    return Summary(changes)
 
 
 def terraform_env(subscription_id: str) -> dict[str, str]:
