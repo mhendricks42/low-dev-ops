@@ -13,7 +13,7 @@ M4 builds on M1 (generator), M2 (catalog, `fill: name`, `cafAbbreviation`) and M
 Decided with the user (2026-10-16):
 
 - **UI:** M4 includes a **Checks** tab that lists findings and lets you add and remove waivers.
-- **Scan target:** M4 scans the project model and the generated HCL, and accepts an optional plan JSON. Tests feed it recorded plan fixtures, and M5 passes in its real `terraform show -json`. Checkov and Trivy see little inside AVM module calls that haven't been initialised, so most scanner findings will come from the plan JSON once M5 lands.
+- **Scan target:** M4 checks the project model (which the HCL is generated from), and accepts an optional plan JSON. Tests feed it recorded plan fixtures, and M5 passes in its real `terraform show -json`. Checkov and Trivy see little inside AVM module calls that haven't been initialised, so most scanner findings will come from the plan JSON once M5 lands.
 
 ## Findings and severity
 
@@ -33,8 +33,8 @@ class Finding:
 - **Waiver match:** a waiver matches a finding when `finding_id` and `resource` are equal. Finding ids are unique per resource: ids that could repeat carry a suffix (`LDO_TAG_MISSING:owner`, `LDO_NSG_ADMIN_OPEN:<rule>`), and repeated scanner hits on one resource collapse to the most severe.
 - **Waiver on a high or critical finding:** it has no effect and is returned under `ignored_waivers` with the reason.
 - **Unmatched waiver:** a waiver that matches no finding is returned under `unused_waivers`. Nothing is deleted automatically.
-- **Apply rule:** `apply_allowed` is true exactly when no high or critical finding remains. Waivers can only cover medium and low, so they never change this. An unwaived medium or low finding does not block; it is shown.
-- **Fail closed:** a scanner that is missing, times out or returns output that can't be parsed produces a `high` finding `LDO_SCANNER_FAILED:<tool>` with source `guardrails`, so apply is blocked rather than silently clean.
+- **Apply rule:** `blocked` is true when an unwaived high or critical finding remains. Waivers can only cover medium and low, so they never change this. An unwaived medium or low finding does not block; it is shown. `apply_allowed` is `plan_scanned and not blocked`: the model alone cannot show what Terraform will create, so apply also needs a plan that Checkov and Trivy read. M5 must re-run these checks on the plan the backend produced itself, never on a plan sent in a request.
+- **Fail closed:** a scanner that is missing, times out, exits with an unexpected code, or prints output that is not JSON or not the shape of a real scan produces a `high` finding `LDO_SCANNER_FAILED:<tool>` with source `guardrails`, so apply is blocked rather than silently clean. "Not a real scan" means: Conftest returns other than one result; Checkov returns no `results`, parse errors or zero resources; Trivy returns no `terraformplan` result. A plan with no resources for a project that has some gives `LDO_SCANNER_FAILED:plan`.
 
 ## Checks (`backend/app/guardrails/`)
 
@@ -49,7 +49,7 @@ class Finding:
 
 - **Why only the plan for Checkov and Trivy:** AVM module calls are opaque until `terraform init` downloads the modules, so scanning the generated HCL finds nothing (checked with both tools). The ROADMAP's "HCL" is covered by Conftest, naming and tags on the model the HCL is generated from.
 - **Curated checks (`policies/scanners.yaml`):** with every check on, real Checkov fails 6–11 checks on a reasonable sandbox storage account (private endpoints, customer-managed keys, diagnostic logs), so a clean project could never be clean. The table lists the security checks LowDevOps adopts and the severity it gives each; adding a line adopts another.
-- **Subprocess rules:** scanners run on argument lists (never `shell=True`) with a 120 s timeout each. Each tool runs in its own fresh temp dir that holds only `input.json` (Conftest) or `plan.json` (Checkov, Trivy). The temp dir is deleted afterwards and nothing touches the workspace. A module address `module.<id>` in scanner output is mapped back to the resource id.
+- **Subprocess rules:** scanners run on argument lists (never `shell=True`), resolved to an absolute path, with a 120 s timeout each. Each runs in its own process group, so a timeout kills the scanner and its workers. Environment variables that configure the scanners (`CHECKOV_*`, `CKV_*`, `BC_*`, `PRISMA_*`, `TRIVY_*`, `CONFTEST_*`) are stripped, so the API's environment cannot silence a check. One check runs at a time. Each tool runs in its own fresh temp dir that holds only `input.json` (Conftest) or `plan.json` (Checkov, Trivy). The temp dir is deleted afterwards and nothing touches the workspace. A module address `module.<id>` in scanner output is mapped back to the resource id.
 - **Starter policies** in `policies/conftest/*.rego`, each with Conftest unit tests (`conftest verify`):
   - storage `min_tls_version` must be `TLS1_2` (deny)
   - storage public network access must not be `Enabled` (warn)
@@ -91,7 +91,9 @@ The values come from Microsoft's "Naming rules and restrictions for Azure resour
   "waived":   [ { "finding": {…}, "waiver": {…} } ],
   "ignored_waivers": [ { "waiver": {…}, "reason": "high findings cannot be waived" } ],
   "unused_waivers":  [ {…} ],
-  "apply_allowed": true
+  "plan_scanned": true,  // Checkov and Trivy read a plan
+  "blocked": false,      // an unwaived high or critical finding
+  "apply_allowed": true  // plan_scanned and not blocked
 }
 ```
 
@@ -102,7 +104,7 @@ The values come from Microsoft's "Naming rules and restrictions for Azure resour
 - **The tab.** A fourth tab, **Checks**. **Run checks** calls the API with the current model. While it runs the button is disabled and the result region is `aria-busy`.
 - **Status line** (`role="status"`): "Apply allowed" or "Apply blocked: N high or critical findings".
 - **Findings table** (caption, `scope` headers): grouped by severity, with columns for id, resource, source and message. Each waivable row has a **Waive** button.
-- **Waive dialog.** It reuses the M3 `<dialog>` component and asks for **Reason** (required, at least 10 characters) and **Your name** (required); `at` is set to the current ISO time. It dispatches `addWaiver`, so the waiver is saved like any other model change, then re-runs the checks and returns focus to the row.
+- **Waive dialog.** It reuses the M3 `<dialog>` component and asks for **Reason** (required, at least 10 characters) and **Your name** (required); `at` is set to the current ISO time. It dispatches `addWaiver`, so the waiver is saved like any other model change, then re-runs the checks and moves focus to the "Waived findings" heading (the row has left the findings table by then). Errors are announced through an alert summary, the 10-character rule is in the Reason hint, and both fields are marked required in their labels.
 - **Waived list.** Each entry shows its reason, author and date, plus a **Remove waiver** button (dispatches `removeWaiver`, then re-runs). Ignored and unused waivers are listed with their reasons.
 - **Stale results.** When the model has changed since the last run, the panel says "Results are out of date. Run checks again." Apply itself arrives in M5.
 
@@ -115,7 +117,7 @@ The values come from Microsoft's "Naming rules and restrictions for Azure resour
   - `backend/app/model.py` (`required_tags`)
   - `backend/app/catalog/model.py` (`NameRules`)
   - `backend/app/hcl/{generate,parse}.py` (tag merge)
-  - `catalog/*.yaml` (`nameRules`, plus the `func` rule for web-site)
+  - `catalog/*.yaml` (`nameRules`); the `func` rule for web-site is `_KIND_ABBREVIATIONS` in `naming.py` and `naming.ts`
   - the schemas
 - **Policies:** `policies/conftest/*.rego` with `policy_test.rego`, `policies/scanners.yaml`, `policies/README.md`
 - **Backend tests:**
@@ -130,14 +132,14 @@ The values come from Microsoft's "Naming rules and restrictions for Azure resour
   - `frontend/src/App.tsx`
   - the regenerated model types
 - **Frontend tests:** `frontend/e2e/m4.spec.ts`
-- **Other:** `Makefile` (`policy-test` target in `check`), `docs/ARCHITECTURE.md` if the flow changes, and `.claude/skills/caf-naming/SKILL.md` (the PRD lists it; it records the naming rules)
+- **Other:** `.devcontainer/Dockerfile` (`LOWDEVOPS_REQUIRE_SCANNERS=1`), `frontend/playwright.config.ts` (stub scanners for the e2e API), `docs/ARCHITECTURE.md`, and `.claude/skills/caf-naming/SKILL.md` (the PRD lists it; it records the naming rules)
 
 ## Exit criteria → proof
 
 | Criterion                                                                               | Proof                                                                                                                                                                                                              |
 | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | A fixture with a high finding gives `apply_allowed: false`                              | `test_guardrails.py::test_high_finding_blocks_apply`, using fixture `high` (storage account with TLS 1.0, a Conftest `deny`). It also checks that a waiver on that finding lands in `ignored_waivers`              |
-| A fixture with a waived medium finding gives `apply_allowed: true` and lists the waiver | `test_waived_medium_allows_apply`, using fixture `waived-medium` (a missing `owner` tag with a waiver)                                                                                                             |
+| A fixture with a waived medium finding gives `apply_allowed: true` and lists the waiver | `test_waived_medium_allows_apply`, using fixture `waived-medium` (public storage: `LDO_ST_PUBLIC` and `CKV_AZURE_59` on `st1`, both medium and waived)                                                             |
 | A clean fixture gives zero findings                                                     | `test_clean_fixture_has_no_findings`, using fixture `clean` (project and plan)                                                                                                                                     |
 | Generated names match the CAF pattern and each type's length and character limits       | `tests/guardrails/test_naming.py` checks every catalog entry against `naming-cases.json`, plus property-style cases (long workload, uppercase, symbols); `frontend/src/model/naming.test.ts` runs the same vectors |
 | UI: keyboard-only waive flow, and axe-core reports 0 violations                         | `e2e/m4.spec.ts`: run checks, waive a medium finding by keyboard, check that the status line and the waived list update, and run axe on the empty, findings, dialog and waived states                              |
@@ -159,12 +161,13 @@ The values come from Microsoft's "Naming rules and restrictions for Azure resour
 - **Hand-written plan fixtures may not match real `terraform show -json` output.** The real-scanner tests check them with real Checkov and Trivy in the dev container, and M5 replaces them with recorded plans.
 - **The scanners are slow** (Checkov takes 5–15 s), so checks run on request, never on every keystroke.
 - **Free Checkov reports no severity**, so `policies/scanners.yaml` sets one for every adopted check. Checks not listed are not run or are dropped, which is a deliberate choice: adopt more by adding lines.
+- **Conftest only sees the model.** Settings written in custom HCL, or spelled in ways the rules don't know, are invisible to it. The rules accept the common spellings (singular and plural NSG fields, any letter case, port ranges, booleans written as strings), and the plan scan in M5 sees what Terraform will actually create, which is why apply needs a scanned plan.
 - **The tag merge changes generated HCL.** The snapshot and round-trip tests are updated in the same PR, and the parser change keeps round-trips exact.
 - **Scanner version drift between the dev container and CI.** Versions are already pinned in `.devcontainer/Dockerfile` (Checkov 3.3.29, Trivy 0.76.0, Conftest 0.71.1).
 
 ## Verification
 
-- `make check` passes, including the stub-scanner API tests, `conftest verify` and the naming vectors on both sides.
+- `make check` passes, including the stub-scanner API tests and the naming vectors on both sides. The Rego unit tests (`conftest verify`) run in `test_real_scanners.py`, so they run wherever Conftest is installed and must pass in the dev-container CI job.
 - The dev-container CI job runs the real-scanner tests on the three fixtures.
 - `make e2e` passes the M3 suite plus `m4.spec.ts` three runs in a row.
 - spec-reviewer, security-reviewer (subprocesses and temp dirs) and a11y-reviewer (`frontend/src`) all return PASS.
