@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=catalog.schema.json
+schemaVersion: 1
+module: avm-res-resources-resourcegroup
+version: 0.4.0
+title: Resource group
+category: foundation
+cafAbbreviation: rg
+inputs:
+  name: { tier: basic, fill: name, description: "Resource group name." }
+  location: { tier: basic, fill: location, description: "Azure region." }
+  tags: { tier: advanced, description: "Tags applied to the resource group." }
+  lock: { tier: advanced, description: "Management lock: CanNotDelete or ReadOnly." }
+  role_assignments: { tier: advanced, description: "Role assignments on the resource group." }
+  enable_telemetry: { tier: hidden, default: false }
+outputs: [name, resource_id, location, resource]
+example: { name: rg-lowdevops-ex }

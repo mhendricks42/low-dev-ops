@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=catalog.schema.json
+schemaVersion: 1
+module: avm-res-network-virtualnetwork
+version: 0.22.3
+title: Virtual network
+category: foundation
+cafAbbreviation: vnet
+inputs:
+  name: { tier: basic, fill: name, description: "Virtual network name." }
+  location: { tier: basic, fill: location, description: "Azure region." }
+  parent_id: { tier: basic, description: "Resource group that holds the network." }
+  address_space:
+    tier: basic
+    default: ["10.0.0.0/16"]
+    description: Address ranges in CIDR form.
+  subnets: { tier: advanced, description: "Subnets, keyed by name, each with an address_prefix." }
+  dns_servers: { tier: advanced, description: "Custom DNS servers." }
+  peerings: { tier: advanced, description: "Peerings to other virtual networks." }
+  tags: { tier: advanced, description: "Tags applied to the network." }
+  lock: { tier: advanced, description: "Management lock: CanNotDelete or ReadOnly." }
+  enable_telemetry: { tier: hidden, default: false }
+refs:
+  - { input: parent_id, from: avm-res-resources-resourcegroup, output: resource_id }
+outputs: [name, resource_id, subnets, address_spaces, resource]
+example: { name: vnet-lowdevops-ex }
