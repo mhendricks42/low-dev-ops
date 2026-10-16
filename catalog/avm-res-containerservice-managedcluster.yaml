@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=catalog.schema.json
+schemaVersion: 1
+module: avm-res-containerservice-managedcluster
+version: 0.8.5
+title: AKS cluster
+category: compute
+cafAbbreviation: aks
+inputs:
+  name: { tier: basic, fill: name, description: "Cluster name: letters, digits, dashes and underscores, up to 63." }
+  location: { tier: basic, fill: location, description: "Azure region." }
+  parent_id: { tier: basic, description: "Resource group that holds the cluster." }
+  default_agent_pool:
+    tier: basic
+    default: { name: systempool, vm_size: Standard_D2ds_v5, count_of: 2 }
+    description: The system node pool's VM size and node count.
+  sku:
+    tier: basic
+    default: { name: Base, tier: Standard }
+    description: "Control plane tier: Free, Standard (uptime SLA) or Premium."
+  kubernetes_version: { tier: advanced, description: "Kubernetes version. Empty means the current default." }
+  agent_pools: { tier: advanced, description: "Additional user node pools, keyed by name." }
+  network_profile: { tier: advanced, description: "Network plugin, policy and address ranges." }
+  aad_profile: { tier: advanced, description: "Entra ID integration and Azure RBAC for Kubernetes." }
+  api_server_access_profile: { tier: advanced, description: "Private cluster and authorized IP ranges." }
+  auto_upgrade_profile: { tier: advanced, description: "Cluster and node OS upgrade channels." }
+  addon_profile_oms_agent: { tier: advanced, description: "Container insights, sent to a Log Analytics workspace." }
+  managed_identities: { tier: advanced, description: "Cluster identity. System-assigned by default." }
+  dns_prefix: { tier: advanced, description: "DNS prefix for the API server. Generated when empty." }
+  role_assignments: { tier: advanced, description: "RBAC role assignments on the cluster." }
+  tags: { tier: advanced, description: "Tags applied to the cluster." }
+  lock: { tier: advanced, description: "Management lock: CanNotDelete or ReadOnly." }
+  enable_telemetry: { tier: hidden, default: false }
+refs:
+  - { input: parent_id, from: avm-res-resources-resourcegroup, output: resource_id }
+outputs: [name, resource_id, fqdn, oidc_issuer_profile_issuer_url, kubelet_identity, node_resource_group_name]
+example: { name: aks-lowdevops-ex }

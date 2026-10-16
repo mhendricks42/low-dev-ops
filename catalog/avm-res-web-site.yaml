@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=catalog.schema.json
+# App Service web apps and Function Apps share this module; `kind` picks one.
+schemaVersion: 1
+module: avm-res-web-site
+version: 0.24.1
+title: App Service or Function App
+category: compute
+cafAbbreviation: app
+inputs:
+  name: { tier: basic, fill: name, description: "App name, globally unique. Use the func prefix for Function Apps." }
+  location: { tier: basic, fill: location, description: "Azure region." }
+  parent_id: { tier: basic, description: "Resource group that holds the app." }
+  service_plan_resource_id: { tier: basic, description: "App Service plan the app runs on." }
+  kind: { tier: basic, default: webapp, description: "webapp for App Service, functionapp for Functions." }
+  os_type: { tier: basic, default: Linux, description: "Linux or Windows. Must match the plan." }
+  site_config: { tier: advanced, description: "Runtime stack, always-on, health check and other site settings." }
+  app_settings: { tier: advanced, description: "Application settings, as name and value pairs." }
+  storage_account_name: { tier: advanced, description: "Storage account a Function App uses for its state." }
+  managed_identities: { tier: advanced, description: "System-assigned or user-assigned identities." }
+  public_network_access_enabled:
+    tier: advanced
+    default: false
+    description: Allow access from public networks. Off by default; use private endpoints.
+  virtual_network_subnet_id: { tier: advanced, description: "Subnet for outbound VNet integration." }
+  private_endpoints: { tier: advanced, description: "Private endpoints for the app." }
+  application_insights_connection_string: { tier: advanced, description: "Application Insights connection string." }
+  role_assignments: { tier: advanced, description: "RBAC role assignments on the app." }
+  tags: { tier: advanced, description: "Tags applied to the app." }
+  lock: { tier: advanced, description: "Management lock: CanNotDelete or ReadOnly." }
+  https_only: { tier: hidden, default: true }
+  ftp_publish_basic_authentication_enabled: { tier: hidden, default: false }
+  scm_publish_basic_authentication_enabled: { tier: hidden, default: false }
+  enable_telemetry: { tier: hidden, default: false }
+refs:
+  - { input: parent_id, from: avm-res-resources-resourcegroup, output: resource_id }
+  - { input: service_plan_resource_id, from: avm-res-web-serverfarm, output: resource_id }
+  - { input: storage_account_name, from: avm-res-storage-storageaccount, output: name }
+outputs: [name, resource_id, kind, identity_principal_id, resource_uri]
+example: { name: app-lowdevops-ex }

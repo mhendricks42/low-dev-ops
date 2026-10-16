@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=catalog.schema.json
+schemaVersion: 1
+module: avm-res-app-managedenvironment
+version: 0.5.1
+title: Container Apps environment
+category: compute
+cafAbbreviation: cae
+inputs:
+  name: { tier: basic, fill: name, description: "Container Apps environment name." }
+  location: { tier: basic, fill: location, description: "Azure region." }
+  resource_group_name: { tier: basic, description: "Resource group that holds the environment." }
+  log_analytics_workspace: { tier: advanced, description: "Log Analytics workspace for container logs." }
+  infrastructure_subnet_id: { tier: advanced, description: "Subnet for a VNet-integrated environment." }
+  internal_load_balancer_enabled: { tier: advanced, description: "Expose apps on a private IP only. Needs a subnet." }
+  zone_redundancy_enabled: { tier: advanced, description: "Spread the environment across availability zones. Needs a subnet." }
+  workload_profile: { tier: advanced, description: "Dedicated workload profiles." }
+  managed_identities: { tier: advanced, description: "System-assigned or user-assigned identities." }
+  role_assignments: { tier: advanced, description: "RBAC role assignments on the environment." }
+  tags: { tier: advanced, description: "Tags applied to the environment." }
+  lock: { tier: advanced, description: "Management lock: CanNotDelete or ReadOnly." }
+  enable_telemetry: { tier: hidden, default: false }
+refs:
+  - { input: resource_group_name, from: avm-res-resources-resourcegroup, output: name }
+outputs: [name, resource_id, default_domain, static_ip_address, resource]
+example: { name: cae-lowdevops-ex }

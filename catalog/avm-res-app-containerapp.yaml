@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=catalog.schema.json
+schemaVersion: 1
+module: avm-res-app-containerapp
+version: 0.9.0
+title: Container app
+category: compute
+cafAbbreviation: ca
+inputs:
+  name: { tier: basic, fill: name, description: "App name: lowercase letters, digits and dashes, up to 32." }
+  location: { tier: basic, fill: location, description: "Azure region." }
+  resource_group_name: { tier: basic, description: "Resource group that holds the app." }
+  container_app_environment_resource_id: { tier: basic, description: "Container Apps environment the app runs in." }
+  template:
+    tier: basic
+    default:
+      containers:
+        - name: app
+          image: mcr.microsoft.com/k8se/quickstart:latest
+          cpu: 0.25
+          memory: 0.5Gi
+    description: Containers, scale rules and volumes. The default runs Microsoft's quickstart image.
+  ingress: { tier: advanced, description: "HTTP ingress: target port, external access and traffic split." }
+  revision_mode: { tier: advanced, default: Single, description: "Single or Multiple active revisions." }
+  secrets: { tier: advanced, description: "Secrets the containers can read." }
+  registries: { tier: advanced, description: "Private container registries to pull from." }
+  managed_identities: { tier: advanced, description: "System-assigned or user-assigned identities." }
+  role_assignments: { tier: advanced, description: "RBAC role assignments on the app." }
+  tags: { tier: advanced, description: "Tags applied to the app." }
+  lock: { tier: advanced, description: "Management lock: CanNotDelete or ReadOnly." }
+  enable_telemetry: { tier: hidden, default: false }
+refs:
+  - { input: resource_group_name, from: avm-res-resources-resourcegroup, output: name }
+  - { input: container_app_environment_resource_id, from: avm-res-app-managedenvironment, output: resource_id }
+outputs: [name, resource_id, fqdn_url, latest_revision_fqdn, outbound_ip_addresses, identity]
+example: { name: ca-lowdevops-ex }

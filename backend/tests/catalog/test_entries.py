@@ -18,6 +18,13 @@ FOUNDATION = {
     "avm-res-keyvault-vault",
     "avm-res-storage-storageaccount",
 }
+COMPUTE = {
+    "avm-res-web-serverfarm",
+    "avm-res-web-site",  # App Service and Functions, by `kind`
+    "avm-res-app-managedenvironment",
+    "avm-res-app-containerapp",
+    "avm-res-containerservice-managedcluster",
+}
 
 
 def _entry(module: str) -> CatalogEntry:
@@ -26,6 +33,16 @@ def _entry(module: str) -> CatalogEntry:
 
 def test_foundation_set_present() -> None:
     assert {m for m, e in CATALOG.entries.items() if e.category == "foundation"} == FOUNDATION
+
+
+def test_compute_set_present() -> None:
+    assert {m for m, e in CATALOG.entries.items() if e.category == "compute"} == COMPUTE
+
+
+def test_web_site_kind_covers_app_service_and_functions() -> None:
+    kind = _entry("avm-res-web-site").inputs["kind"]
+    assert (kind.tier, kind.default) == ("basic", "webapp")
+    assert "functionapp" in (kind.description or "")
 
 
 @pytest.mark.parametrize("module", MODULES)
