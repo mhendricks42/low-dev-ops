@@ -19,9 +19,10 @@ typecheck: ## mypy --strict + tsc
 	$(BE) uv run mypy .
 	$(FE) npm run typecheck
 
-test: ## pytest + vitest
+test: ## pytest + vitest + bundle size budget
 	$(BE) uv run pytest -q
 	$(FE) npm test
+	$(FE) npm run size
 
 check: lint typecheck test ## lint, typecheck and unit tests
 
