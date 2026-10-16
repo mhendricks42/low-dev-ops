@@ -51,7 +51,7 @@ jobs:
         with:
           name: e2e-evidence
           path: |
-            docs/specs/M0/hello.png
+            docs/specs/M3/*.png
             frontend/playwright-report/
             frontend/test-results/
           if-no-files-found: ignore

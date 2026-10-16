@@ -19,7 +19,7 @@ test('a resource with a parent is nested in a group node that comes first', () =
   })
   const { nodes, edges } = toFlow(p, CATALOG)
   expect(nodes.map((n) => [n.id, n.parentId, n.type])).toEqual([
-    ['rg1', undefined, 'group'],
+    ['rg1', undefined, 'default'],
     ['vnet1', 'rg1', undefined],
   ])
   expect(nodes[1]?.ariaLabel).toBe('vnet1, Virtual network, inside rg1')

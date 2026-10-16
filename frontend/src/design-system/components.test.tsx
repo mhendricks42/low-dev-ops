@@ -62,3 +62,19 @@ test('tabs move with arrow keys and show only the active panel', () => {
   expect(screen.getByRole('tabpanel', { name: 'Beta' })).toBeVisible()
   expect(screen.getByText('first')).not.toBeVisible()
 })
+
+test('a panel mounts on first view and stays mounted after', () => {
+  render(
+    <Tabs
+      label="Views"
+      tabs={[
+        { id: 'a', label: 'Alpha', panel: <p>first</p> },
+        { id: 'b', label: 'Beta', panel: <p>second</p> },
+      ]}
+    />,
+  )
+  expect(screen.queryByText('second')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('tab', { name: 'Beta' }))
+  fireEvent.click(screen.getByRole('tab', { name: 'Alpha' }))
+  expect(screen.getByText('second')).toBeInTheDocument()
+})

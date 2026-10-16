@@ -54,7 +54,7 @@ pre {
 
 .canvas-layout {
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(18rem, 2fr);
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: var(--space-4);
 }
 
@@ -86,4 +86,12 @@ pre {
 .list-view ul {
   margin: 0;
   padding-left: var(--space-3);
+}
+
+.list-view .toolbar {
+  flex-wrap: wrap;
+}
+
+.canvas-layout > section {
+  overflow-x: auto;
 }

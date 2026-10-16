@@ -37,6 +37,19 @@ export default function MonacoHcl({ value, onChange, onSave, error }: EditorProp
       language="hcl"
       value={value}
       onChange={(v) => onChange(v ?? '')}
+      theme="lowdevops"
+      beforeMount={(m) =>
+        // Default line numbers fail 4.5:1 contrast on white; match the design tokens instead.
+        m.editor.defineTheme('lowdevops', {
+          base: 'vs',
+          inherit: true,
+          rules: [],
+          colors: {
+            'editorLineNumber.foreground': '#4d4d4d',
+            'editorLineNumber.activeForeground': '#1a1a1a',
+          },
+        })
+      }
       onMount={(editor) => {
         editorRef.current = editor
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => saveRef.current())
@@ -48,6 +61,7 @@ export default function MonacoHcl({ value, onChange, onSave, error }: EditorProp
         minimap: { enabled: false },
         fontSize: 14,
         scrollBeyondLastLine: false,
+        renderFinalNewline: 'on', // the default dims the last line number below AA contrast
       }}
     />
   )

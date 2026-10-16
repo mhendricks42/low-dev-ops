@@ -209,9 +209,12 @@ export interface Tab {
   panel: ReactNode
 }
 
-// ARIA tabs with arrow/Home/End keys. Panels stay mounted (hidden) so editors keep their state.
+// ARIA tabs with arrow/Home/End keys. A panel mounts the first time it is shown (so canvases
+// measure a real size), then stays mounted while hidden so editors keep their state.
 export function Tabs({ label, tabs }: { label: string; tabs: Tab[] }) {
   const [active, setActive] = useState(tabs[0]?.id ?? '')
+  const [visited, setVisited] = useState(() => new Set([active]))
+  if (!visited.has(active)) setVisited(new Set(visited).add(active))
   const refs = useRef<Record<string, HTMLButtonElement | null>>({})
 
   function onKeyDown(e: KeyboardEvent) {
@@ -262,7 +265,7 @@ export function Tabs({ label, tabs }: { label: string; tabs: Tab[] }) {
           hidden={t.id !== active}
           tabIndex={0}
         >
-          {t.panel}
+          {visited.has(t.id) && t.panel}
         </section>
       ))}
     </>

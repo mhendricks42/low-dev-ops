@@ -10,5 +10,5 @@ One Conventional Commit per task. Exit criteria (EC) come from [ROADMAP](../../R
 - [x] T6 `feat(frontend)`: app shell (tabs, status) and the wizard (add and edit, More options, ref selects, custom HCL read-only).
 - [x] T7 `feat(frontend)`: Monaco HCL editor with save, inline error, unsaved-edits guard and discard.
 - [x] T8 `feat(frontend)`: React Flow canvas (nesting, edges, allowed connections, layout) and the keyboard list view.
-- [ ] T9 `test(frontend)`: Playwright for **EC1** wizard→canvas+HCL, **EC2** HCL→wizard, **EC3** invalid HCL, **EC4** keyboard only and **EC5** axe on every panel. Screenshots go in `docs/specs/M3/`.
+- [x] T9 `test(frontend)`: Playwright for **EC1** wizard→canvas+HCL, **EC2** HCL→wizard, **EC3** invalid HCL, **EC4** keyboard only and **EC5** axe on every panel. Screenshots go in `docs/specs/M3/`.
 - [x] T10 `docs`: frontend/CLAUDE.md and backend/CLAUDE.md commands, with tasks ticked.
