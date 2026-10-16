@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Check every catalog entry: pin exists, interface matches the module, example validates.
+# Needs terraform and registry.terraform.io, so it runs in CI (see docs/specs/M2/spec.md).
+set -euo pipefail
+root=$(cd "$(dirname "$0")/.." && pwd)
+cd "$root/backend"
+exec uv run python -m app.catalog.check "$root/catalog"

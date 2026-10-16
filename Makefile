@@ -2,7 +2,7 @@
 BE := cd backend &&
 FE := cd frontend &&
 
-.PHONY: help install lint typecheck test check e2e dev fmt schema
+.PHONY: help install lint typecheck test check e2e dev fmt schema catalog
 
 help: ## Show targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -39,3 +39,6 @@ fmt: ## Auto-fix formatting and lint
 schema: ## Regenerate project.json and catalog JSON Schemas from the models
 	$(BE) mkdir -p schema && uv run python -m app.schema > schema/project.schema.json
 	$(BE) uv run python -m app.schema catalog > ../catalog/catalog.schema.json
+
+catalog: ## check-catalog: pins, module interfaces and terraform validate (needs network)
+	scripts/check-catalog
