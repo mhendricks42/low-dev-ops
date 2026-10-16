@@ -14,9 +14,12 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
 function statusText(report: CheckReport): string {
   const blocking = report.findings.filter((f) => !f.waivable).length
-  if (!report.apply_allowed) return `Apply blocked: ${plural(blocking, 'high or critical finding')}`
+  if (report.blocked) return `Apply blocked: ${plural(blocking, 'high or critical finding')}`
   const open = report.findings.length
-  return open ? `Apply allowed, with ${plural(open, 'finding')} to review` : 'Apply allowed'
+  const review = open ? `, with ${plural(open, 'finding')} to review` : ''
+  if (!report.plan_scanned)
+    return `No blocking findings${review}. Apply also needs a scanned plan, which comes with planning.`
+  return `Apply allowed${review}`
 }
 
 function WaiveDialog({
@@ -31,6 +34,7 @@ function WaiveDialog({
   const [reason, setReason] = useState('')
   const [by, setBy] = useState('')
   const [errors, setErrors] = useState<{ reason?: string; by?: string }>({})
+  const [summary, setSummary] = useState('')
   const reasonRef = useRef<HTMLInputElement>(null)
   const byRef = useRef<HTMLInputElement>(null)
 
@@ -44,6 +48,8 @@ function WaiveDialog({
       by: by.trim() ? undefined : 'Your name: enter who is accepting this finding.',
     }
     setErrors(next)
+    // The field may already have focus, so focusing it again says nothing: the alert does.
+    setSummary([next.reason, next.by].filter(Boolean).join(' '))
     if (next.reason) return reasonRef.current?.focus()
     if (next.by) return byRef.current?.focus()
     onWaive({
@@ -59,9 +65,12 @@ function WaiveDialog({
     <Dialog title={`Waive ${finding.id} on ${finding.resource}`} open onClose={onClose}>
       <p>{finding.message}</p>
       <form onSubmit={submit} noValidate>
+        <p role="alert" className="ds-error">
+          {summary}
+        </p>
         <TextField
-          label="Reason"
-          hint="Stored in project.json and shown with the plan."
+          label="Reason (required)"
+          hint={`At least ${MIN_REASON} characters. Stored in project.json and shown with the plan.`}
           value={reason}
           error={errors.reason}
           required
@@ -69,7 +78,7 @@ function WaiveDialog({
           onChange={setReason}
         />
         <TextField
-          label="Your name"
+          label="Your name (required)"
           value={by}
           error={errors.by}
           required
@@ -109,11 +118,16 @@ export function Checks() {
     api
       .check(target)
       .then((r) => {
+        // One update, so the status text and the busy flag change together.
         setReport(r)
         setChecked(JSON.stringify(target))
+        setRunning(false)
       })
-      .catch((e: unknown) => setError(`Checks did not run: ${(e as Error).message}`))
-      .finally(() => setRunning(false))
+      .catch((e: unknown) => {
+        focusAfterRun.current = null // no result to move focus to
+        setError(`Checks did not run: ${(e as Error).message}`)
+        setRunning(false)
+      })
   }
 
   // Apply the change to the model (saved like any edit) and re-check that same model.
@@ -142,13 +156,23 @@ export function Checks() {
         once planning is available.
       </p>
       <div className="toolbar">
-        <Button variant="primary" disabled={running} onClick={() => run(project)}>
+        {/* aria-disabled, not disabled: a disabled button drops focus to the page body. */}
+        <Button
+          variant="primary"
+          aria-disabled={running}
+          onClick={() => {
+            if (!running) run(project)
+          }}
+        >
           {running ? 'Running checks…' : 'Run checks'}
         </Button>
       </div>
       {error && <Alert>{error}</Alert>}
+      {/* Always present, outside the busy region, so every change is announced. */}
+      <Status>
+        {running ? 'Running checks…' : report ? statusText(report) : 'Checks have not run yet.'}
+      </Status>
       <div aria-busy={running}>
-        {report && <Status>{statusText(report)}</Status>}
         {stale && <p>Results are out of date. Run checks again.</p>}
         {report && (
           <>
@@ -208,7 +232,7 @@ export function Checks() {
                       <th scope="col">Finding</th>
                       <th scope="col">Resource</th>
                       <th scope="col">Reason</th>
-                      <th scope="col">By</th>
+                      <th scope="col">By, date</th>
                       <th scope="col">Action</th>
                     </tr>
                   </thead>

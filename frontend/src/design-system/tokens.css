@@ -126,6 +126,16 @@
   border-radius: var(--radius);
   padding: var(--space-4);
   min-width: min(30rem, 90vw);
+  /* Fits at 320px (WCAG 1.4.10): never wider than the viewport, long ids wrap. */
+  box-sizing: border-box;
+  max-width: calc(100vw - 2 * var(--space-2));
+  overflow-wrap: anywhere;
+}
+.ds-dialog input,
+.ds-dialog select,
+.ds-dialog textarea {
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .ds-dialog::backdrop {
   background: rgb(0 0 0 / 40%);

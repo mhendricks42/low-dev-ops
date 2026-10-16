@@ -32,7 +32,9 @@ function report(p: Project, findings: Finding[]): CheckReport {
     ignored_waivers: [],
     unused_waivers: [],
     scanners: ['naming', 'tags', 'conftest'],
-    apply_allowed: !findings.some((f) => !f.waivable),
+    plan_scanned: false,
+    blocked: findings.some((f) => !f.waivable),
+    apply_allowed: false, // no plan in M4
   }
 }
 
@@ -83,8 +85,10 @@ test('a high finding blocks apply and cannot be waived', async () => {
   stub([HIGH, MEDIUM])
   renderChecks()
   fireEvent.click(await screen.findByRole('button', { name: 'Run checks' }))
-  expect(await screen.findByRole('status')).toHaveTextContent(
-    'Apply blocked: 1 high or critical finding',
+  await waitFor(() =>
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Apply blocked: 1 high or critical finding',
+    ),
   )
   const high = screen.getByRole('row', { name: /LDO_ST_TLS/ })
   expect(within(high).queryByRole('button')).toBeNull()
@@ -99,13 +103,15 @@ test('waiving needs a reason and a name, saves the waiver and re-checks', async 
   fireEvent.click(await screen.findByRole('button', { name: 'Waive LDO_ST_PUBLIC on st1' }))
   const dialog = screen.getByRole('dialog', { name: 'Waive LDO_ST_PUBLIC on st1' })
   fireEvent.click(within(dialog).getByRole('button', { name: 'Waive finding' }))
-  const reason = within(dialog).getByLabelText('Reason')
+  const reason = within(dialog).getByLabelText(/^Reason/)
   expect(reason).toHaveAccessibleDescription(/write at least 10 characters/)
   expect(reason).toHaveFocus()
+  // Focus does not move (it is already there), so the alert is what gets announced.
+  expect(within(dialog).getByRole('alert')).toHaveTextContent(/^Reason: write at least 10/)
   fireEvent.change(reason, { target: { value: 'Public on purpose for the demo.' } })
   fireEvent.click(within(dialog).getByRole('button', { name: 'Waive finding' }))
-  expect(within(dialog).getByLabelText('Your name')).toHaveFocus()
-  fireEvent.change(within(dialog).getByLabelText('Your name'), { target: { value: 'Sam' } })
+  expect(within(dialog).getByLabelText(/^Your name/)).toHaveFocus()
+  fireEvent.change(within(dialog).getByLabelText(/^Your name/), { target: { value: 'Sam' } })
   fireEvent.click(within(dialog).getByRole('button', { name: 'Waive finding' }))
 
   const waived = await screen.findByRole('row', { name: /LDO_ST_PUBLIC \(medium\)/ })
@@ -127,7 +133,11 @@ test('results say when the model changed after the last run', async () => {
   stub([])
   renderChecks()
   fireEvent.click(await screen.findByRole('button', { name: 'Run checks' }))
-  expect(await screen.findByRole('status')).toHaveTextContent('Apply allowed')
+  await waitFor(() =>
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /^No blocking findings\. Apply also needs a scanned plan/,
+    ),
+  )
   expect(screen.queryByText(/out of date/)).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: 'Edit model' }))
   expect(screen.getByText('Results are out of date. Run checks again.')).toBeInTheDocument()
@@ -146,4 +156,66 @@ test('a failed check run is shown as an alert', async () => {
   renderChecks()
   fireEvent.click(await screen.findByRole('button', { name: 'Run checks' }))
   expect(await screen.findByRole('alert')).toHaveTextContent('Checks did not run')
+})
+
+test('the status is always there, says when checks run, and the button keeps focus', async () => {
+  let release: (() => void) | undefined
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/api/catalog') return Response.json({ entries: CATALOG })
+      if (url === '/api/hcl/generate') return Response.json({ hcl: '' })
+      if (url === '/api/guardrails/check') {
+        await new Promise<void>((r) => (release = r))
+        return Response.json(report(JSON.parse(String(init?.body)).project as Project, []))
+      }
+      return Response.json({ project: project(), issues: [] })
+    }),
+  )
+  renderChecks()
+  const button = await screen.findByRole('button', { name: 'Run checks' })
+  expect(screen.getByRole('status')).toHaveTextContent('Checks have not run yet.')
+  button.focus()
+  fireEvent.click(button)
+  expect(screen.getByRole('status')).toHaveTextContent('Running checks…')
+  expect(button).toHaveAttribute('aria-disabled', 'true')
+  expect(button).toHaveFocus() // not disabled, so focus is not dropped to the body
+  fireEvent.click(button) // ignored while running
+  await waitFor(() => expect(release).toBeDefined())
+  release?.()
+  await waitFor(() =>
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /^No blocking findings\. Apply also needs a scanned plan/,
+    ),
+  )
+  expect(button).toHaveAttribute('aria-disabled', 'false')
+})
+
+test('a failed re-check after a waiver does not move focus on the next run', async () => {
+  let fail = false
+  stub([MEDIUM])
+  const ok = globalThis.fetch
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init?: RequestInit) =>
+      fail && url === '/api/guardrails/check' ? Response.json({}, { status: 500 }) : ok(url, init),
+    ),
+  )
+  renderChecks()
+  fireEvent.click(await screen.findByRole('button', { name: 'Run checks' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Waive LDO_ST_PUBLIC on st1' }))
+  const dialog = screen.getByRole('dialog')
+  fireEvent.change(within(dialog).getByLabelText(/^Reason/), {
+    target: { value: 'A good reason here.' },
+  })
+  fireEvent.change(within(dialog).getByLabelText(/^Your name/), { target: { value: 'Sam' } })
+  fail = true
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Waive finding' }))
+  expect(await screen.findByRole('alert', { name: '' })).toHaveTextContent('Checks did not run')
+  fail = false
+  const button = screen.getByRole('button', { name: 'Run checks' })
+  button.focus()
+  fireEvent.click(button)
+  await screen.findByRole('row', { name: /LDO_ST_PUBLIC \(medium\)/ })
+  expect(button).toHaveFocus()
 })
