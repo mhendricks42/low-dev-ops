@@ -1,0 +1,17 @@
+[
+	{
+		"filename": "input.json",
+		"namespace": "main",
+		"successes": 3,
+		"warnings": [
+			{
+				"msg": "st1: storage is reachable from the public internet (public_network_access_enabled)",
+				"metadata": {
+					"id": "LDO_ST_PUBLIC",
+					"query": "data.main.warn",
+					"resource": "st1"
+				}
+			}
+		]
+	}
+]

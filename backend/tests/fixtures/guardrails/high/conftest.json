@@ -1,0 +1,17 @@
+[
+	{
+		"filename": "input.json",
+		"namespace": "main",
+		"successes": 3,
+		"failures": [
+			{
+				"msg": "st1: storage must require TLS 1.2 (min_tls_version is TLS1_0)",
+				"metadata": {
+					"id": "LDO_ST_TLS",
+					"query": "data.main.deny",
+					"resource": "st1"
+				}
+			}
+		]
+	}
+]
