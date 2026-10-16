@@ -1,0 +1,14 @@
+schemaVersion: 1
+module: avm-res-network-virtualnetwork
+version: 0.22.3
+title: Virtual network
+category: foundation
+cafAbbreviation: vnet
+inputs:
+  name: { tier: basic, fill: name }
+  location: { tier: basic, fill: location }
+  address_space: { tier: basic, default: ["10.0.0.0/16"] }
+  enable_telemetry: { tier: hidden, default: false }
+refs:
+  - { input: parent_id, from: avm-res-resources-resourcegroup, output: resource_id }
+outputs: [name, resource_id]

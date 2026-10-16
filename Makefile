@@ -36,5 +36,6 @@ fmt: ## Auto-fix formatting and lint
 	$(BE) uv run ruff format . && uv run ruff check --fix .
 	$(FE) npm run format
 
-schema: ## Regenerate backend/schema/project.schema.json from the model
+schema: ## Regenerate project.json and catalog JSON Schemas from the models
 	$(BE) mkdir -p schema && uv run python -m app.schema > schema/project.schema.json
+	$(BE) uv run python -m app.schema catalog > ../catalog/catalog.schema.json

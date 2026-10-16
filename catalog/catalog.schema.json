@@ -1,0 +1,178 @@
+{
+  "$defs": {
+    "AllowedRef": {
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "pattern": "^avm-[a-z0-9-]+$",
+          "title": "From",
+          "type": "string"
+        },
+        "input": {
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "title": "Input",
+          "type": "string"
+        },
+        "output": {
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+          "title": "Output",
+          "type": "string"
+        }
+      },
+      "required": [
+        "input",
+        "from",
+        "output"
+      ],
+      "title": "AllowedRef",
+      "type": "object"
+    },
+    "InputSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "$ref": "#/$defs/JsonValue",
+          "default": null
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "fill": {
+          "anyOf": [
+            {
+              "enum": [
+                "name",
+                "location",
+                "tenant_id"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fill"
+        },
+        "tier": {
+          "enum": [
+            "basic",
+            "advanced",
+            "hidden"
+          ],
+          "title": "Tier",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tier"
+      ],
+      "title": "InputSpec",
+      "type": "object"
+    },
+    "JsonValue": {}
+  },
+  "additionalProperties": false,
+  "properties": {
+    "cafAbbreviation": {
+      "pattern": "^[a-z]{2,8}$",
+      "title": "Cafabbreviation",
+      "type": "string"
+    },
+    "category": {
+      "enum": [
+        "foundation",
+        "compute"
+      ],
+      "title": "Category",
+      "type": "string"
+    },
+    "example": {
+      "default": {},
+      "patternProperties": {
+        "^[A-Za-z_][A-Za-z0-9_]{0,127}$": {
+          "$ref": "#/$defs/JsonValue"
+        }
+      },
+      "title": "Example",
+      "type": "object"
+    },
+    "inputs": {
+      "patternProperties": {
+        "^[A-Za-z_][A-Za-z0-9_]{0,127}$": {
+          "$ref": "#/$defs/InputSpec"
+        }
+      },
+      "title": "Inputs",
+      "type": "object"
+    },
+    "module": {
+      "pattern": "^avm-[a-z0-9-]+$",
+      "title": "Module",
+      "type": "string"
+    },
+    "outputs": {
+      "items": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$",
+        "type": "string"
+      },
+      "title": "Outputs",
+      "type": "array"
+    },
+    "rawReason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rawreason"
+    },
+    "refs": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/AllowedRef"
+      },
+      "title": "Refs",
+      "type": "array"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "version": {
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "module",
+    "version",
+    "title",
+    "category",
+    "cafAbbreviation",
+    "inputs",
+    "outputs"
+  ],
+  "title": "CatalogEntry",
+  "type": "object"
+}
