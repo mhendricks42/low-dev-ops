@@ -359,9 +359,9 @@ export function Dialog({
   )
 }
 
-export function Status({ children }: { children: ReactNode }) {
+export function Status({ children, busy }: { children: ReactNode; busy?: boolean }) {
   return (
-    <p role="status" className="ds-status">
+    <p role="status" className="ds-status" aria-busy={busy}>
       {children}
     </p>
   )

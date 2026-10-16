@@ -21,7 +21,10 @@ async function addResource(page: Page, type: string) {
 }
 
 async function saved(page: Page) {
-  await expect(page.getByRole('status').filter({ hasText: 'All changes saved' })).toBeVisible()
+  // aria-busy is true from a change until that change is saved, so this waits for the latest.
+  await expect(
+    page.locator('[role="status"][aria-busy="false"]').filter({ hasText: 'All changes saved' }),
+  ).toBeVisible()
 }
 
 const editor = (page: Page) => page.locator('.monaco-editor .view-lines')

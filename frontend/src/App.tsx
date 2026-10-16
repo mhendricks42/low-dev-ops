@@ -24,7 +24,7 @@ function useApiHealth(): string {
 }
 
 function Shell() {
-  const { project, saveStatus, saveError, announcement } = useStore()
+  const { project, saveStatus, saveError, announcement, pending } = useStore()
   const health = useApiHealth()
   return (
     <>
@@ -32,7 +32,7 @@ function Shell() {
         <h1>LowDevOps: {project.meta.name}</h1>
         <div className="app-status">
           <Status>API: {health}</Status>
-          <Status>{saveStatus}</Status>
+          <Status busy={pending}>{saveStatus}</Status>
         </div>
       </header>
       <p role="status" className="ds-sr-only">

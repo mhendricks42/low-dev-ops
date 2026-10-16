@@ -1,4 +1,13 @@
-import { createContext, useContext, useEffect, useReducer, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { api, ApiError } from '../api'
 import { emptyProject } from './catalog'
 import type { CatalogEntry } from './catalog-entry'
@@ -12,6 +21,8 @@ interface Store {
   hcl: string
   saveStatus: string
   saveError: string | null
+  // True from a change until the save of that change succeeds (header status aria-busy).
+  pending: boolean
   // Short message for screen readers, e.g. "Added vnet1" (WCAG 4.1.3).
   announcement: string
   announce: (message: string) => void
@@ -36,7 +47,15 @@ function Loaded({
   catalog: CatalogEntry[]
   children: ReactNode
 }) {
-  const [project, dispatch] = useReducer(reducer, initial)
+  const [project, rawDispatch] = useReducer(reducer, initial)
+  const revisionRef = useRef(0)
+  const [revision, setRevision] = useState(0)
+  const [savedRevision, setSavedRevision] = useState(-1)
+  const dispatch = useCallback((action: Action) => {
+    revisionRef.current += 1
+    setRevision(revisionRef.current)
+    rawDispatch(action)
+  }, [])
   const [hcl, setHcl] = useState('')
   const [saveStatus, setSaveStatus] = useState('Loaded')
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -45,6 +64,7 @@ function Loaded({
   // Every model change is saved and regenerates the HCL (PRD sync rules).
   useEffect(() => {
     let cancelled = false
+    const rev = revisionRef.current // the change this save covers
     const timer = setTimeout(() => {
       // Set when a save really starts (not per keystroke), so each later "All changes saved"
       // is a real change that a screen reader announces, without chattering while typing.
@@ -59,6 +79,7 @@ function Loaded({
           if (cancelled) return
           setSaveStatus('All changes saved')
           setSaveError(null)
+          setSavedRevision(rev)
         })
         .catch((e: unknown) => {
           if (cancelled) return
@@ -74,7 +95,17 @@ function Loaded({
 
   return (
     <StoreContext.Provider
-      value={{ project, dispatch, catalog, hcl, saveStatus, saveError, announcement, announce }}
+      value={{
+        project,
+        dispatch,
+        catalog,
+        hcl,
+        saveStatus,
+        saveError,
+        pending: revision !== savedRevision,
+        announcement,
+        announce,
+      }}
     >
       {children}
     </StoreContext.Provider>
