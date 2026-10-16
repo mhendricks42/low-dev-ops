@@ -10,18 +10,18 @@ M2 is backend-only, like M1: a library, its tests, a check script and a CI job. 
 
 One file per AVM module, named after the module. The model's `catalogRef` (`<module>@<version>`) points at exactly one entry.
 
-| Need                       | File                                           | AVM module                                              | CAF abbreviation         |
-| -------------------------- | ---------------------------------------------- | ------------------------------------------------------- | ------------------------ |
-| Resource group             | `avm-res-resources-resourcegroup.yaml`         | `Azure/avm-res-resources-resourcegroup/azurerm`         | `rg`                     |
-| Virtual network            | `avm-res-network-virtualnetwork.yaml`          | `Azure/avm-res-network-virtualnetwork/azurerm`          | `vnet`                   |
-| Network security group     | `avm-res-network-networksecuritygroup.yaml`    | `Azure/avm-res-network-networksecuritygroup/azurerm`    | `nsg`                    |
-| Key Vault                  | `avm-res-keyvault-vault.yaml`                  | `Azure/avm-res-keyvault-vault/azurerm`                  | `kv`                     |
-| Storage account            | `avm-res-storage-storageaccount.yaml`          | `Azure/avm-res-storage-storageaccount/azurerm`          | `st`                     |
-| App Service plan           | `avm-res-web-serverfarm.yaml`                  | `Azure/avm-res-web-serverfarm/azurerm`                  | `asp`                    |
-| App Service and Functions  | `avm-res-web-site.yaml`                        | `Azure/avm-res-web-site/azurerm`                        | `app` / `func` by `kind` |
-| Container Apps environment | `avm-res-app-managedenvironment.yaml`          | `Azure/avm-res-app-managedenvironment/azurerm`          | `cae`                    |
-| Container app              | `avm-res-app-containerapp.yaml`                | `Azure/avm-res-app-containerapp/azurerm`                | `ca`                     |
-| AKS                        | `avm-res-containerservice-managedcluster.yaml` | `Azure/avm-res-containerservice-managedcluster/azurerm` | `aks`                    |
+| Need                       | File                                           | AVM module                                              | CAF abbreviation               |
+| -------------------------- | ---------------------------------------------- | ------------------------------------------------------- | ------------------------------ |
+| Resource group             | `avm-res-resources-resourcegroup.yaml`         | `Azure/avm-res-resources-resourcegroup/azurerm`         | `rg`                           |
+| Virtual network            | `avm-res-network-virtualnetwork.yaml`          | `Azure/avm-res-network-virtualnetwork/azurerm`          | `vnet`                         |
+| Network security group     | `avm-res-network-networksecuritygroup.yaml`    | `Azure/avm-res-network-networksecuritygroup/azurerm`    | `nsg`                          |
+| Key Vault                  | `avm-res-keyvault-vault.yaml`                  | `Azure/avm-res-keyvault-vault/azurerm`                  | `kv`                           |
+| Storage account            | `avm-res-storage-storageaccount.yaml`          | `Azure/avm-res-storage-storageaccount/azurerm`          | `st`                           |
+| App Service plan           | `avm-res-web-serverfarm.yaml`                  | `Azure/avm-res-web-serverfarm/azurerm`                  | `asp`                          |
+| App Service and Functions  | `avm-res-web-site.yaml`                        | `Azure/avm-res-web-site/azurerm`                        | `app` (`func` by `kind` is M4) |
+| Container Apps environment | `avm-res-app-managedenvironment.yaml`          | `Azure/avm-res-app-managedenvironment/azurerm`          | `cae`                          |
+| Container app              | `avm-res-app-containerapp.yaml`                | `Azure/avm-res-app-containerapp/azurerm`                | `ca`                           |
+| AKS                        | `avm-res-containerservice-managedcluster.yaml` | `Azure/avm-res-containerservice-managedcluster/azurerm` | `aks`                          |
 
 App Service and Functions share the `web/site` module, so they are one entry with a basic `kind` input (`webapp` or `functionapp`). The RG, VNet and NSG pins stay at the versions the M1 fixtures use (0.4.0, 0.22.3, 0.6.0). The other pins are the latest release when the entry is written. No raw `azurerm`/`azapi` entries are needed, so the `rawReason` field below stays unused in M2.
 
@@ -102,7 +102,7 @@ ADR-0003 says each entry marks every input. AVM modules have many (AKS has well 
 ## Out of scope
 
 - API routes and UI for the catalog (M3)
-- Applying naming patterns and tags to `name` and `tags` (M4); M2 only records `fill: name` and the abbreviation
+- Applying naming patterns and tags to `name` and `tags` (M4); M2 only records `fill: name` and the abbreviation. Choosing `func` over `app` for Function Apps is part of M4 naming.
 - Landing-zone patterns (M6)
 - Subnets as their own entries, private endpoints, diagnostic settings
 - Running `terraform plan`
