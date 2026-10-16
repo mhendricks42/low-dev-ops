@@ -103,6 +103,7 @@
 }
 .ds-tablist {
   display: flex;
+  flex-wrap: wrap; /* reflow at 320px (WCAG 1.4.10) */
   gap: var(--space-1);
   border-bottom: 1px solid var(--border);
 }

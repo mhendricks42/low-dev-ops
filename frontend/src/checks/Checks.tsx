@@ -1,6 +1,6 @@
 // Guardrail checks (M4): run them, see what blocks apply, and waive medium/low findings with a
 // written reason that is stored in project.json like any other model change.
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { api } from '../api'
 import { Alert, Button, Dialog, Status, TextField } from '../design-system/components'
 import type { Project, Waiver } from '../model/project'
@@ -158,39 +158,41 @@ export function Checks() {
             {report.findings.length === 0 ? (
               <p>No open findings.</p>
             ) : (
-              <table className="list-view">
-                <caption className="ds-sr-only">Open findings, most severe first</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Severity</th>
-                    <th scope="col">Finding</th>
-                    <th scope="col">Resource</th>
-                    <th scope="col">Source</th>
-                    <th scope="col">Message</th>
-                    <th scope="col">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.findings.map((f) => (
-                    <tr key={`${f.id}:${f.resource}`} data-severity={f.severity}>
-                      <td>{label(f.severity)}</td>
-                      <th scope="row">{f.id}</th>
-                      <td>{f.resource}</td>
-                      <td>{f.source}</td>
-                      <td>{f.message}</td>
-                      <td>
-                        {f.waivable ? (
-                          <Button onClick={() => setWaiving(f)}>
-                            Waive {f.id} on {f.resource}
-                          </Button>
-                        ) : (
-                          'Must be fixed'
-                        )}
-                      </td>
+              <TableScroll label="Open findings">
+                <table className="list-view">
+                  <caption className="ds-sr-only">Open findings, most severe first</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Severity</th>
+                      <th scope="col">Finding</th>
+                      <th scope="col">Resource</th>
+                      <th scope="col">Source</th>
+                      <th scope="col">Message</th>
+                      <th scope="col">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {report.findings.map((f) => (
+                      <tr key={`${f.id}:${f.resource}`} data-severity={f.severity}>
+                        <td>{label(f.severity)}</td>
+                        <th scope="row">{f.id}</th>
+                        <td>{f.resource}</td>
+                        <td>{f.source}</td>
+                        <td>{f.message}</td>
+                        <td>
+                          {f.waivable ? (
+                            <Button onClick={() => setWaiving(f)}>
+                              Waive {f.id} on {f.resource}
+                            </Button>
+                          ) : (
+                            'Must be fixed'
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </TableScroll>
             )}
             <h3 id="waived-heading" tabIndex={-1}>
               Waived findings
@@ -198,35 +200,37 @@ export function Checks() {
             {report.waived.length === 0 ? (
               <p>No waived findings.</p>
             ) : (
-              <table className="list-view">
-                <caption className="ds-sr-only">Waived findings and their reasons</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Finding</th>
-                    <th scope="col">Resource</th>
-                    <th scope="col">Reason</th>
-                    <th scope="col">By</th>
-                    <th scope="col">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.waived.map(({ finding: f, waiver: w }) => (
-                    <tr key={`${f.id}:${f.resource}`}>
-                      <th scope="row">
-                        {f.id} ({f.severity})
-                      </th>
-                      <td>{f.resource}</td>
-                      <td>{w.reason}</td>
-                      <td>
-                        {w.by}, <time dateTime={w.at}>{w.at.slice(0, 10)}</time>
-                      </td>
-                      <td>
-                        <RemoveWaiver waiver={w} onRemove={change} />
-                      </td>
+              <TableScroll label="Waived findings">
+                <table className="list-view">
+                  <caption className="ds-sr-only">Waived findings and their reasons</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Finding</th>
+                      <th scope="col">Resource</th>
+                      <th scope="col">Reason</th>
+                      <th scope="col">By</th>
+                      <th scope="col">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {report.waived.map(({ finding: f, waiver: w }) => (
+                      <tr key={`${f.id}:${f.resource}`}>
+                        <th scope="row">
+                          {f.id} ({f.severity})
+                        </th>
+                        <td>{f.resource}</td>
+                        <td>{w.reason}</td>
+                        <td>
+                          {w.by}, <time dateTime={w.at}>{w.at.slice(0, 10)}</time>
+                        </td>
+                        <td>
+                          <RemoveWaiver waiver={w} onRemove={change} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </TableScroll>
             )}
             {waivers.length > 0 && (
               <>
@@ -283,5 +287,15 @@ function RemoveWaiver({
     >
       Remove waiver for {w.findingId} on {w.resource}
     </Button>
+  )
+}
+
+// Wide tables scroll inside a focusable region at narrow widths (WCAG 1.4.10 allows this for
+// data tables); tabIndex lets keyboard users scroll it (axe scrollable-region-focusable).
+function TableScroll({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="table-scroll" role="region" aria-label={label} tabIndex={0}>
+      {children}
+    </div>
   )
 }
