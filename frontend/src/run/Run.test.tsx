@@ -174,6 +174,10 @@ test('bootstrap needs the subscription confirmed, then streams its log', async (
   source?.emit('exit', { exitCode: 0, status: 'succeeded' })
   await waitFor(() => expect(status()).toHaveTextContent('State backend ready.'))
   expect(source?.closed).toBe(true)
+  // The bootstrap controls are gone: focus moves on to the next step, not to <body>.
+  expect(
+    screen.getByRole('checkbox', { name: `I confirm subscription Sandbox (${SUB}) for this plan` }),
+  ).toHaveFocus()
   expect(screen.getByText(/State is stored in storage account stlowdevopsabc/)).toBeInTheDocument()
 })
 
@@ -195,6 +199,7 @@ test('plan needs the subscription confirmed; the plan lists destroys and replace
     ]),
   )
   expect(status()).toHaveTextContent('Planning…')
+  expect(status()).not.toHaveAttribute('aria-busy', 'true') // or "Planning…" may go unread
   await waitFor(() => expect(FakeEventSource.last?.url).toBe('/api/runs/run-1/log'))
   s.current = {
     run: null,
@@ -262,6 +267,7 @@ test('apply needs the typed name and, for destroys, a second confirmation', asyn
   FakeEventSource.last?.emit('exit', { exitCode: 0, status: 'succeeded' })
   await waitFor(() => expect(status()).toHaveTextContent('Apply complete.'))
   expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull() // the plan is used up
+  expect(screen.getByRole('region', { name: 'Run log' })).toHaveFocus()
 })
 
 test('guardrails that block keep apply unavailable, with the reason', async () => {
@@ -291,4 +297,20 @@ test('guardrails that block keep apply unavailable, with the reason', async () =
     'Guardrails block apply: Apply blocked: 1 high or critical finding.',
   )
   expect(screen.getByText(/High: LDO_ST_TLS on st1/)).toBeInTheDocument()
+})
+
+test('the bootstrap location must be a region name, and the field says so', async () => {
+  const s = server({ backend: null })
+  renderRun()
+  const location = await screen.findByLabelText(/^Location/)
+  fireEvent.change(location, { target: { value: 'West Europe' } })
+  expect(location).toHaveAccessibleDescription(/Location: enter an Azure region name/)
+  fireEvent.click(screen.getByRole('checkbox', { name: /^Create the state backend/ }))
+  const button = screen.getByRole('button', { name: 'Bootstrap state backend' })
+  expect(button).toHaveAttribute('aria-disabled', 'true')
+  expect(button).toHaveAccessibleDescription('Enter a valid location.')
+  fireEvent.click(button)
+  expect(s.posts).toEqual([])
+  fireEvent.change(location, { target: { value: 'northeurope' } })
+  expect(button).toHaveAttribute('aria-disabled', 'false')
 })

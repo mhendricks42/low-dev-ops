@@ -1,7 +1,7 @@
 // M5: bootstrap, plan and apply with typed confirmations. The API runs the fake az and terraform
 // from backend/tests/bin (playwright.config.ts), so nothing here reaches Azure.
 import AxeBuilder from '@axe-core/playwright'
-import { readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
@@ -11,6 +11,13 @@ const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
 const API = 'http://127.0.0.1:8000'
 const FIXTURE = resolve('../backend/tests/fixtures/guardrails/clean/project.json')
 const tfState = () => process.env.LOWDEVOPS_FAKE_TF_STATE ?? ''
+
+// Forget the state backend (the fake az's resources and settings.json), so bootstrap runs again.
+function resetBackend() {
+  const azState = process.env.LOWDEVOPS_FAKE_AZ_STATE ?? ''
+  for (const entry of readdirSync(azState)) rmSync(join(azState, entry), { force: true })
+  rmSync(join(process.env.LOWDEVOPS_E2E_WORKSPACE ?? '', 'settings.json'), { force: true })
+}
 
 async function expectNoViolations(page: Page) {
   const results = await new AxeBuilder({ page }).withTags(WCAG).analyze()
@@ -65,9 +72,23 @@ async function plan(page: Page, summary: string) {
 test.afterEach(() => rmSync(join(tfState(), 'destroy'), { force: true }))
 
 test('keyboard only: bootstrap, plan, then apply once the name is typed', async ({ page }) => {
+  resetBackend()
   const name = await openRunTab(page)
   await expectNoViolations(page) // before any run
-  await bootstrapIfNeeded(page)
+
+  // Bootstrap with the keyboard only.
+  const create = page.getByRole('checkbox', { name: /^Create the state backend in subscription/ })
+  const bootstrap = page.getByRole('button', { name: 'Bootstrap state backend' })
+  await expect(bootstrap).toHaveAttribute('aria-disabled', 'true')
+  await tabTo(page, create)
+  await page.keyboard.press('Space')
+  await tabTo(page, bootstrap)
+  await page.keyboard.press('Enter')
+  await expect(runStatus(page)).toHaveText('State backend ready.')
+  // The bootstrap controls are gone; focus moves on to the plan confirmation.
+  await expect(
+    page.getByRole('checkbox', { name: /^I confirm subscription .* for this plan$/ }),
+  ).toBeFocused()
   await expectNoViolations(page)
 
   // Plan with the keyboard only.
@@ -98,6 +119,7 @@ test('keyboard only: bootstrap, plan, then apply once the name is typed', async 
   await expect(runStatus(page)).toHaveText('Apply complete.')
   await expect(page.getByRole('region', { name: 'Run log' })).toContainText('Apply complete!')
   await expect(apply).toBeHidden() // the plan is used up
+  await expect(page.getByRole('region', { name: 'Run log' })).toBeFocused()
   await expectNoViolations(page)
 })
 

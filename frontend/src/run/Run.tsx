@@ -13,6 +13,7 @@ const ACTION: Record<Change['action'], string> = {
   delete: 'Destroy',
   replace: 'Replace',
 }
+const LOCATION = /^[a-z0-9]{2,40}$/ // as the API checks it
 const RUNNING: Record<RunKind, string> = {
   bootstrap: 'Creating the state backend…',
   plan: 'Planning…',
@@ -127,6 +128,8 @@ export function Run() {
     }
   }, [name, subscriptionId, show])
 
+  const planConfirmRef = useRef<HTMLInputElement>(null)
+  const logRef = useRef<HTMLDivElement>(null)
   const onExit = useCallback(
     (exit: RunExit) => {
       const kind = active?.kind ?? 'plan'
@@ -135,12 +138,16 @@ export function Run() {
         setStatus(outcome(kind, exit, now))
         setTypedName('')
         setDestroyConfirmed(false)
+        if (exit.status !== 'succeeded') return
+        // The controls the user acted on are gone after these: move focus on, not to <body>.
+        // Both targets stay mounted, so they can take focus now.
+        if (kind === 'bootstrap') planConfirmRef.current?.focus()
+        if (kind === 'apply') logRef.current?.focus()
       })
     },
     [active, refresh],
   )
   const lines = useLog(active?.id ?? null, onExit)
-
   function start(kind: RunKind, call: () => Promise<string>) {
     setError(null)
     setRunning(true)
@@ -159,11 +166,16 @@ export function Run() {
   const plan = current?.plan ?? null
   const destroys = plan?.summary.destroys.length ?? 0
 
+  const locationError = LOCATION.test(location.trim())
+    ? null
+    : 'Location: enter an Azure region name, such as westeurope.'
   const bootstrapBlocker = running
     ? 'Wait for the current run to finish.'
-    : !bootstrapConfirmed
-      ? 'Tick the box to confirm the subscription.'
-      : null
+    : locationError
+      ? 'Enter a valid location.'
+      : !bootstrapConfirmed
+        ? 'Tick the box to confirm the subscription.'
+        : null
   const planBlocker = running
     ? 'Wait for the current run to finish.'
     : pending
@@ -193,7 +205,8 @@ export function Run() {
         plan and your typed confirmation.
       </p>
       {error && <Alert>{error}</Alert>}
-      <Status busy={running}>{status || 'No run yet.'}</Status>
+      {/* Never aria-busy: a busy live region may hold back "Planning…" (WCAG 4.1.3). */}
+      <Status>{status || 'No run yet.'}</Status>
 
       <h3>Azure account</h3>
       {accountError ? (
@@ -234,13 +247,20 @@ export function Run() {
             No state backend yet. One shared backend per subscription keeps every project&apos;s
             Terraform state, with versioning, soft delete and Entra-only access.
           </p>
-          <TextField label="Location" value={location} onChange={setLocation} required />
+          <TextField
+            label="Location"
+            hint="The Azure region for the state backend, such as westeurope."
+            value={location}
+            error={locationError}
+            onChange={setLocation}
+            required
+          />
           <Checkbox
             label={`Create the state backend in subscription ${subscriptionLabel}`}
             checked={bootstrapConfirmed}
             onChange={setBootstrapConfirmed}
           />
-          <Gate blocker={bootstrapBlocker}>
+          <Gate blocker={bootstrapBlocker} id="bootstrap-blocker">
             <Button
               variant="primary"
               aria-disabled={bootstrapBlocker !== null}
@@ -261,6 +281,7 @@ export function Run() {
         label={`I confirm subscription ${subscriptionLabel} for this plan`}
         checked={planConfirmed}
         onChange={setPlanConfirmed}
+        inputRef={planConfirmRef}
       />
       <Gate blocker={planBlocker} id="plan-blocker">
         <Button
@@ -279,7 +300,15 @@ export function Run() {
         <>
           <h3>Run log</h3>
           {/* Not live: a screen reader would read every line. The status line says how it ends. */}
-          <div className="run-log" role="region" aria-label="Run log" tabIndex={0} aria-live="off">
+          <div
+            ref={logRef}
+            className="run-log"
+            role="region"
+            aria-label="Run log"
+            tabIndex={0}
+            aria-live="off"
+            aria-busy={running}
+          >
             <pre>{lines.join('\n')}</pre>
           </div>
         </>
@@ -364,11 +393,11 @@ export function Run() {
 // A gated button with the reason it is unavailable, as text next to it.
 function Gate({
   blocker,
-  id = 'bootstrap-blocker',
+  id,
   children,
 }: {
   blocker: string | null
-  id?: string
+  id: string
   children: ReactNode
 }) {
   return (

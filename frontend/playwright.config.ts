@@ -4,7 +4,9 @@ import { delimiter, join, resolve } from 'node:path'
 import { defineConfig } from '@playwright/test'
 
 // A throwaway workspace, so e2e runs never touch ~/lowdevops.
-const workspace = mkdtempSync(join(tmpdir(), 'lowdevops-e2e-'))
+const workspace = (process.env.LOWDEVOPS_E2E_WORKSPACE ??= mkdtempSync(
+  join(tmpdir(), 'lowdevops-e2e-'),
+))
 // State of the fake az and terraform (M5). Set here so the specs, which run in workers started
 // from this process, can flip the fakes' switches (e.g. a plan that destroys).
 process.env.LOWDEVOPS_FAKE_AZ_STATE ??= mkdtempSync(join(tmpdir(), 'lowdevops-e2e-az-'))

@@ -134,7 +134,7 @@ A fifth tab, **Run**, in four parts:
 2. **State backend:** the recorded backend, or a **Bootstrap state backend** button. It needs a checkbox, "Create the state backend in subscription \<name\> (\<id\>)". The log streams below it.
 3. **Plan:**
    - A required checkbox, "I confirm subscription \<name\> (\<id\>) for this plan". Then a **Plan** button.
-   - **Live log.** A scrollable, focusable `region` with `aria-live="off"`, so it doesn't chatter. Start and finish are announced through the store's announcer, and a `role="status"` line says "Planning…", "Plan ready: 2 to add, 0 to change, 1 to destroy" or "Plan failed (exit 1)".
+   - **Live log.** A scrollable, focusable `region` with `aria-live="off"`, so it doesn't chatter. It is `aria-busy` while a run is going. Start and finish are announced by one `role="status"` line in the tab (never `aria-busy`, and not repeated through the store's announcer, so nothing is read twice), which says "Planning…", "Plan ready: 2 to add, 0 to change, 1 to destroy" or "Plan failed (exit 1)".
    - **Plan summary.** A table of the changes. Deletes and replaces are highlighted with text ("Destroy", "Replace"), not colour alone.
    - **Guardrails.** The report from the backend's own plan, reusing the M4 status line and findings list.
 4. **Apply:** visible once a plan is ready.
@@ -142,6 +142,7 @@ A fifth tab, **Run**, in four parts:
    - When the plan destroys or replaces anything, a second checkbox: "I understand this destroys or replaces N resources".
    - The **Apply** button stays `aria-disabled` until the name matches, the destroy box is ticked if needed, and the guardrails allow apply. The reason shows as text next to it.
    - The apply log streams like the plan log.
+   - **Focus.** When a run's controls disappear on success, focus moves on instead of dropping to the page: after bootstrap to the plan confirmation, after apply to the run log.
 
 ## Files touched
 

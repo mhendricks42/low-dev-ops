@@ -93,14 +93,20 @@ export function NumberField(p: FieldProps & { value: number; onChange: (value: n
   )
 }
 
-export function Checkbox(
-  p: FieldProps & { checked: boolean; onChange: (checked: boolean) => void },
-) {
+export function Checkbox({
+  inputRef,
+  ...p
+}: FieldProps & {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  inputRef?: Ref<HTMLInputElement>
+}) {
   const id = useId()
   return (
     <div className="ds-check">
       <input
         id={id}
+        ref={inputRef}
         type="checkbox"
         checked={p.checked}
         aria-describedby={p.hint ? `${id}-hint` : undefined}
