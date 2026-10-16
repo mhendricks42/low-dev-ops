@@ -19,9 +19,9 @@ One Conventional Commit per task. Exit criteria (EC) come from [ROADMAP](../../R
 
 ## PR B — `feat/m5-runner`
 
-- [ ] B1 `feat(backend)`: `runtime.tf`, the terraform env, and plan steps (init, plan, show -json, guardrails) with the plan record, using the fake `terraform` binary.
-- [ ] B2 `feat(backend)`: apply gates (saved plan sha, unchanged model, confirmName, confirmDestroy, guardrails) and single-use plans (**EC1**).
-- [ ] B3 `feat(frontend)`: Run tab with account, backend and bootstrap, plan with live log and summary, guardrails, and apply with typed confirmations.
-- [ ] B4 `test(frontend)`: `e2e/m5.spec.ts` covering typed confirmations and the destroy second confirm, with axe on each state (**EC4**).
-- [ ] B5 `feat(scripts)`: `scripts/e2e-sandbox.sh`, the human gate (**EC6**). Claude never runs it.
-- [ ] B6 `docs`: CLAUDE.md, ARCHITECTURE, and tasks ticked.
+- [x] B1 `feat(backend)`: `runtime.tf`, the terraform env, and plan steps (init, plan, show -json, guardrails) with the plan record, using the fake `terraform` binary.
+- [x] B2 `feat(backend)`: apply gates (saved plan sha, unchanged model, confirmName, confirmDestroy, guardrails) and single-use plans (**EC1**).
+- [x] B3 `feat(frontend)`: Run tab with account, backend and bootstrap, plan with live log and summary, guardrails, and apply with typed confirmations.
+- [x] B4 `test(frontend)`: `e2e/m5.spec.ts` covering typed confirmations and the destroy second confirm, with axe on each state (**EC4**).
+- [x] B5 `feat(scripts)`: `scripts/e2e-sandbox.sh`, the human gate (**EC6**). Claude never runs it.
+- [x] B6 `docs`: CLAUDE.md, ARCHITECTURE, and tasks ticked.
