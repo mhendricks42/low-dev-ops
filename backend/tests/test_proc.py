@@ -3,6 +3,7 @@
 import contextlib
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -185,3 +186,36 @@ def test_leftover_group_members_are_killed_after_a_normal_exit(tmp_path: Path) -
             return
         time.sleep(0.1)
     pytest.fail(f"worker {worker} outlived its run")
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_a_detached_process_holding_the_pipe_does_not_fake_a_timeout_or_leak(
+    tmp_path: Path, stream: bool
+) -> None:
+    # The tool exits 0 on time; a setsid helper it started keeps stdout open. The run must
+    # report the tool's real result, and leave no reader thread or pipe fd behind.
+    pid_file = tmp_path / "helper"
+    code = (
+        "import subprocess\n"
+        "h = subprocess.Popen(['sleep', '300'], start_new_session=True)\n"
+        f"open({str(pid_file)!r}, 'w').write(str(h.pid))\n"
+        "print('ok', flush=True)"
+    )
+    threads, fds = threading.active_count(), len(os.listdir("/proc/self/fd"))
+    lines: list[str] = []
+    try:
+        done = proc.run(
+            [PY, "-c", code],
+            cwd=tmp_path,
+            timeout=60,
+            env=proc.inherited_env(),
+            on_line=lines.append if stream else None,
+        )
+        assert done.returncode == 0
+        assert (lines if stream else done.stdout.splitlines()) == ["ok"]
+        assert threading.active_count() == threads
+        assert len(os.listdir("/proc/self/fd")) == fds
+    finally:
+        if pid_file.exists():
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(int(pid_file.read_text()), 9)
