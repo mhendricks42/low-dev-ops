@@ -2,10 +2,12 @@
 
 import contextlib
 import os
+import subprocess
 import sys
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -219,3 +221,28 @@ def test_a_detached_process_holding_the_pipe_does_not_fake_a_timeout_or_leak(
         if pid_file.exists():
             with contextlib.suppress(ProcessLookupError):
                 os.kill(int(pid_file.read_text()), 9)
+
+
+def test_a_failure_while_setting_up_still_kills_the_child(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    started: list[subprocess.Popen[bytes]] = []
+    real_popen = subprocess.Popen
+
+    def spy(*args: Any, **kwargs: Any) -> subprocess.Popen[bytes]:
+        started.append(real_popen(*args, **kwargs))
+        return started[-1]
+
+    def no_threads(_: threading.Thread) -> None:
+        raise RuntimeError("can't start new thread")
+
+    monkeypatch.setattr(subprocess, "Popen", spy)
+    monkeypatch.setattr(threading.Timer, "start", no_threads)
+    with pytest.raises(RuntimeError, match="new thread"):
+        proc.run(
+            [PY, "-c", "import time; time.sleep(300)"],
+            cwd=tmp_path,
+            timeout=60,
+            env=proc.inherited_env(),
+        )
+    assert started[0].returncode == -9  # killed and reaped, not left running

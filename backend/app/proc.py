@@ -99,13 +99,13 @@ def run(
     }
     chunks: dict[str, list[str]] = {name: [] for name in names.values()}
     pending = ""
-    selector = selectors.DefaultSelector()
-    for fd in names:
-        selector.register(fd, selectors.EVENT_READ)
+    selector = selectors.DefaultSelector()  # one per run; nothing else starts before `try`
     timer = threading.Timer(timeout, partial(kill_group, on_timeout=True))
     timer.daemon = True
-    timer.start()
     try:
+        for fd in names:
+            selector.register(fd, selectors.EVENT_READ)
+        timer.start()
         grace_ends: float | None = None
         while selector.get_map():
             if grace_ends is None and exited():
@@ -132,7 +132,8 @@ def run(
             time.sleep(0.02)
     finally:  # also on a callback error: leave no tool running
         timer.cancel()
-        timer.join()  # a timer already firing finishes before we reap
+        if timer.ident is not None:  # started: a timer already firing finishes first
+            timer.join()
         kill_group()
         selector.close()
         for stream in (process.stdout, process.stderr):
