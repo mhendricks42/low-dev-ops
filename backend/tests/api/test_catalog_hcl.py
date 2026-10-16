@@ -4,7 +4,7 @@ from app.hcl.generate import generate
 from app.main import app
 from tests.conftest import FIXTURES, load_project
 
-client = TestClient(app)
+client = TestClient(app, base_url="http://127.0.0.1:8000")
 
 
 def project_json(name: str) -> dict[str, object]:

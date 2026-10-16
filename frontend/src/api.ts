@@ -33,9 +33,13 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 export const api = {
   catalog: () => call<{ entries: CatalogEntry[] }>('GET', '/api/catalog').then((d) => d.entries),
   getProject: (name: string) =>
-    call<{ project: Project }>('GET', `/api/projects/${name}`).then((d) => d.project),
+    call<{ project: Project }>('GET', `/api/projects/${encodeURIComponent(name)}`).then(
+      (d) => d.project,
+    ),
   saveProject: (project: Project) =>
-    call<{ issues: unknown[] }>('PUT', `/api/projects/${project.meta.name}`, { project }),
+    call<{ issues: unknown[] }>('PUT', `/api/projects/${encodeURIComponent(project.meta.name)}`, {
+      project,
+    }),
   generate: (project: Project) =>
     call<{ hcl: string }>('POST', '/api/hcl/generate', { project }).then((d) => d.hcl),
   parse: (hcl: string, previous: Project) =>

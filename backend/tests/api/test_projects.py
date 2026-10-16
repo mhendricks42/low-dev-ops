@@ -8,7 +8,7 @@ from app.hcl.generate import generate
 from app.main import app
 from tests.conftest import load_project
 
-client = TestClient(app)
+client = TestClient(app, base_url="http://127.0.0.1:8000")
 
 
 @pytest.fixture
