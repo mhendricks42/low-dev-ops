@@ -4,6 +4,9 @@ import App, { projectName } from './App'
 import { CATALOG } from './model/testData'
 import type { Project } from './model/project'
 
+// React Flow needs real layout APIs; the canvas is covered by the Playwright tests.
+vi.mock('./canvas/Canvas', () => ({ Canvas: () => null }))
+
 afterEach(() => vi.unstubAllGlobals())
 
 function stubApi() {

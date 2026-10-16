@@ -1,5 +1,6 @@
 import { Status, Tabs } from './design-system/components'
 import { ProjectProvider, useStore } from './model/store'
+import { Canvas } from './canvas/Canvas'
 import { HclView } from './editor/HclView'
 import { Wizard } from './wizard/Wizard'
 
@@ -23,7 +24,7 @@ function Shell() {
           label="Project views"
           tabs={[
             { id: 'wizard', label: 'Wizard', panel: <Wizard /> },
-            { id: 'canvas', label: 'Canvas', panel: <p>Canvas</p> },
+            { id: 'canvas', label: 'Canvas', panel: <Canvas /> },
             { id: 'hcl', label: 'HCL', panel: <HclView /> },
           ]}
         />
