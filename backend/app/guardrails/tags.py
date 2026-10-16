@@ -1,12 +1,16 @@
 """Required tags: every resource must end up with each of project.required_tags (M4)."""
 
+from app.catalog.load import Catalog
 from app.guardrails.findings import Finding
 from app.model import Project
 
 
-def check_tags(project: Project) -> list[Finding]:
+def check_tags(project: Project, catalog: Catalog) -> list[Finding]:
     found: list[Finding] = []
     for r in project.resources:
+        entry = catalog.entries.get(r.catalog_ref.partition("@")[0])
+        if entry is None or "tags" not in entry.inputs:
+            continue  # nothing the user could set; unknown modules are the catalog check's job
         own = r.inputs.get("tags")
         # The generator merges project tags under the resource's own (M4 spec, Tags).
         effective = {**project.tags, **(own if isinstance(own, dict) else {})}

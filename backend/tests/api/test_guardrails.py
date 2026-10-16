@@ -62,12 +62,18 @@ def test_clean_fixture_has_no_findings(monkeypatch: pytest.MonkeyPatch) -> None:
         "ignored_waivers": [],
         "unused_waivers": [],
         "scanners": ["naming", "tags", "conftest", "checkov", "trivy"],
+        "plan_scanned": True,
+        "blocked": False,
         "apply_allowed": True,
     }
 
 
-def test_plan_is_optional(monkeypatch: pytest.MonkeyPatch) -> None:
-    assert run("clean", monkeypatch, with_plan=False)["scanners"] == ["naming", "tags", "conftest"]
+def test_without_a_plan_apply_is_not_allowed_yet(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The plan is optional for checking, but apply needs one: the request's plan is also never
+    # trusted for apply (M5 re-runs the checks on the plan the backend produced itself).
+    data = run("clean", monkeypatch, with_plan=False)
+    assert data["scanners"] == ["naming", "tags", "conftest"]
+    assert (data["blocked"], data["plan_scanned"], data["apply_allowed"]) == (False, False, False)
 
 
 def test_a_plan_that_is_not_an_object_is_422() -> None:

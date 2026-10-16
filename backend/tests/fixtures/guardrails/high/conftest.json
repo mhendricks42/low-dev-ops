@@ -5,7 +5,7 @@
 		"successes": 3,
 		"failures": [
 			{
-				"msg": "st1: storage must require TLS 1.2 (min_tls_version is TLS1_0)",
+				"msg": "st1: storage must require TLS 1.2 or later (min_tls_version is TLS1_0)",
 				"metadata": {
 					"id": "LDO_ST_TLS",
 					"query": "data.main.deny",

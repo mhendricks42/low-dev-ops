@@ -7,6 +7,9 @@ finding, so a broken scanner can never make a project look clean.
 
 import hashlib
 import json
+import os
+import shutil
+import signal
 import subprocess
 from collections.abc import Iterator
 from pathlib import Path
@@ -38,22 +41,53 @@ def curated_checks(tool: str) -> dict[str, Severity]:
     return checks
 
 
+# Settings these tools read from the environment (e.g. TRIVY_IGNOREFILE, CKV_SKIP_CHECK) could
+# silence checks, so they never reach a scanner.
+_CONFIG_PREFIXES = ("CHECKOV_", "CKV_", "BC_", "PRISMA_", "TRIVY_", "CONFTEST_")
+
+
+def _env() -> dict[str, str]:
+    return {k: v for k, v in os.environ.items() if not k.startswith(_CONFIG_PREFIXES)}
+
+
 def _run(args: list[str], cwd: Path, ok_codes: set[int]) -> Any:
+    tool = args[0]
+    binary = shutil.which(tool)  # an absolute path, resolved on the API's PATH
+    if binary is None:
+        raise ScannerError(f"{tool} is not installed")
+    # Own process group, so a timeout kills the scanner and everything it started.
+    with (
+        subprocess.Popen(  # noqa: S603 - fixed argument list, no shell
+            [binary, *args[1:]],
+            cwd=cwd,
+            env=_env(),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+        ) as process
+    ):
+        try:
+            stdout, stderr = process.communicate(timeout=TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired as e:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.communicate()
+            raise ScannerError(f"{tool} took longer than {TIMEOUT_SECONDS} s") from e
+    if process.returncode not in ok_codes:
+        tail = (stderr or stdout).strip().splitlines()[-1:] or ["no output"]
+        raise ScannerError(f"{tool} exited with {process.returncode}: {tail[0][:200]}")
     try:
-        done = subprocess.run(  # noqa: S603 - fixed argument list, no shell
-            args, cwd=cwd, capture_output=True, text=True, timeout=TIMEOUT_SECONDS, check=False
-        )
-    except FileNotFoundError as e:
-        raise ScannerError(f"{args[0]} is not installed") from e
-    except subprocess.TimeoutExpired as e:
-        raise ScannerError(f"{args[0]} took longer than {TIMEOUT_SECONDS} s") from e
-    if done.returncode not in ok_codes:
-        tail = (done.stderr or done.stdout).strip().splitlines()[-1:] or ["no output"]
-        raise ScannerError(f"{args[0]} exited with {done.returncode}: {tail[0][:200]}")
-    try:
-        return json.loads(done.stdout)
+        return json.loads(stdout)
     except json.JSONDecodeError as e:
-        raise ScannerError(f"{args[0]} printed output that is not JSON") from e
+        raise ScannerError(f"{tool} printed output that is not JSON") from e
+
+
+def plan_resource_count(plan: dict[str, Any]) -> int:
+    changes = plan.get("resource_changes")
+    if not isinstance(changes, list):
+        return 0
+    return sum(1 for c in changes if isinstance(c, dict) and c.get("mode") == "managed")
 
 
 def failed(tool: str, error: ScannerError) -> Finding:
@@ -93,9 +127,12 @@ def conftest(project: Project, workdir: Path) -> list[Finding]:
         "input.json",
     ]
     data = _run(args, workdir, ok_codes={0, 1})  # 1 means "a policy failed"
+    # One input file, so exactly one result: anything else means nothing was evaluated.
+    if not (isinstance(data, list) and len(data) == 1 and isinstance(data[0], dict)):
+        raise ScannerError("conftest output has an unexpected shape")
     ids = {r.id for r in project.resources}
     found: list[Finding] = []
-    for result in data if isinstance(data, list) else []:
+    for result in data:
         for key, severity in (("failures", "high"), ("warnings", "medium")):
             for item in result.get(key) or []:
                 meta = item.get("metadata") or {}
@@ -130,7 +167,7 @@ def _resource_of(address: str, ids: set[str]) -> str:
     return "project"
 
 
-def checkov(project: Project, workdir: Path) -> list[Finding]:
+def checkov(project: Project, plan: dict[str, Any], workdir: Path) -> list[Finding]:
     checks = curated_checks("checkov")
     args = [
         "checkov",
@@ -148,6 +185,11 @@ def checkov(project: Project, workdir: Path) -> list[Finding]:
     ]
     data = _run(args, workdir, ok_codes={0, 1})  # 1 means "a check failed"
     reports = data if isinstance(data, list) else [data]
+    # A plan Checkov could not read prints a bare summary and exits 0: that is not "clean".
+    scanned = [r for r in reports if isinstance(r, dict) and isinstance(r.get("results"), dict)]
+    summary = scanned[0].get("summary", {}) if scanned else {}
+    if not scanned or summary.get("parsing_errors") or not summary.get("resource_count"):
+        raise ScannerError("checkov did not scan any resource in the plan")
     ids = {r.id for r in project.resources}
     found: list[Finding] = []
     for report in reports:
@@ -180,6 +222,11 @@ def trivy(project: Project, plan: dict[str, Any], workdir: Path) -> list[Finding
         ".",
     ]
     data = _run(args, workdir, ok_codes={0})
+    results = data.get("Results") if isinstance(data, dict) else None
+    if not isinstance(results, list) or not any(
+        isinstance(r, dict) and r.get("Type") == "terraformplan" for r in results
+    ):
+        raise ScannerError("trivy did not read the plan")
     ids = {r.id for r in project.resources}
     # Trivy names plan resources "<type>.<name>_<md5 of the module address>".
     root = (plan.get("planned_values") or {}).get("root_module") or {}
@@ -188,7 +235,7 @@ def trivy(project: Project, plan: dict[str, Any], workdir: Path) -> list[Finding
         for address in _module_addresses(root)
     }
     found: list[Finding] = []
-    for result in (data.get("Results") if isinstance(data, dict) else None) or []:
+    for result in results:
         for item in result.get("Misconfigurations") or []:
             check_id = item.get("ID")
             if check_id not in checks or item.get("Status", "FAIL") != "FAIL":

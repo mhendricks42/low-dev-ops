@@ -40,5 +40,7 @@ def run_check(body: CheckRequest) -> dict[str, Any]:
         "ignored_waivers": [{"waiver": _waiver(w), "reason": r} for w, r in report.ignored_waivers],
         "unused_waivers": [_waiver(w) for w in report.unused_waivers],
         "scanners": report.scanners,
+        "plan_scanned": report.plan_scanned,
+        "blocked": report.blocked,
         "apply_allowed": report.apply_allowed,
     }
