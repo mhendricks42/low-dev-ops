@@ -19,6 +19,9 @@ def test_catalog_lists_every_entry_by_alias() -> None:
     vnet = next(e for e in entries if e["module"] == "avm-res-network-virtualnetwork")
     assert vnet["cafAbbreviation"] == "vnet"
     assert vnet["refs"][0]["from"] == "avm-res-resources-resourcegroup"
+    # Only what the YAML sets: an input without a default must not arrive as default: null.
+    assert "default" not in vnet["inputs"]["parent_id"]
+    assert vnet["inputs"]["enable_telemetry"]["default"] is False
 
 
 def test_generate_matches_the_generator() -> None:

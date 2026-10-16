@@ -54,3 +54,11 @@ test('refOptions lists allowed (input, target, output) for existing resources on
   const rg = p.resources?.[0]
   expect(rg && refOptions(p, CATALOG, rg)).toEqual([]) // an RG takes no refs
 })
+
+test('a ref input never gets a literal, even with a null default from the catalog', () => {
+  const entry = {
+    ...VNET,
+    inputs: { ...VNET.inputs, parent_id: { tier: 'basic' as const, default: null as never } },
+  }
+  expect(newResource(entry, project(), 'vnet1').inputs).not.toHaveProperty('parent_id')
+})
