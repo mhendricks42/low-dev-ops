@@ -5,6 +5,7 @@ lock lives in this process: the API is single-user on localhost, and Terraform's
 the second line of defence.
 """
 
+import os
 import secrets
 import threading
 from collections.abc import Callable, Mapping
@@ -34,7 +35,7 @@ class Run:
     started_at: str = field(default_factory=_now)
     finished_at: str | None = None
     lines: list[str] = field(default_factory=list)
-    log_file: Path | None = None
+    log_fd: int | None = None  # run.log, opened by the work (no symlink follow); see log_to
     _changed: threading.Condition = field(default_factory=threading.Condition, repr=False)
 
     def append(self, line: str) -> None:
@@ -44,16 +45,25 @@ class Run:
                 self.lines.append(line)
             elif self.lines[-1] != TRUNCATED:
                 self.lines.append(TRUNCATED)
-            if self.log_file is not None:
-                with self.log_file.open("a") as f:
-                    f.write(line + "\n")
+            if self.log_fd is not None:
+                data = memoryview((line + "\n").encode())
+                while data:
+                    data = data[os.write(self.log_fd, data) :]
             self._changed.notify_all()
+
+    def log_to(self, fd: int) -> None:
+        """Also write every line to `fd` from now on; the registry closes it when the run ends."""
+        with self._changed:
+            self.log_fd = fd
 
     def finish(self, exit_code: int) -> None:
         with self._changed:
             self.exit_code = exit_code
             self.status = "succeeded" if exit_code == 0 else "failed"
             self.finished_at = _now()
+            if self.log_fd is not None:
+                os.close(self.log_fd)
+                self.log_fd = None
             self._changed.notify_all()
 
     def wait(self, timeout: float | None = None) -> bool:
@@ -84,14 +94,12 @@ class RunRegistry:
         self._active: dict[str, Run] = {}
         self._runs: dict[str, Run] = {}  # every run of this process, for status and logs
 
-    def start(
-        self, key: str, kind: str, work: Callable[[Run], int], log_file: Path | None = None
-    ) -> Run:
+    def start(self, key: str, kind: str, work: Callable[[Run], int]) -> Run:
         with self._lock:
             active = self._active.get(key)
             if active is not None and active.status == "running":
                 raise RunBusy(active)
-            run = Run(id=secrets.token_hex(8), key=key, kind=kind, log_file=log_file)
+            run = Run(id=secrets.token_hex(8), key=key, kind=kind)
             if active is not None:  # keep only the latest run per key (bounded memory)
                 self._runs.pop(active.id, None)
             self._active[key] = run

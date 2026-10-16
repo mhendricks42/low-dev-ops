@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""Fake Terraform for tests and e2e: never calls Azure.
+
+State lives in LOWDEVOPS_FAKE_TF_STATE (a directory). Every call is appended to <state>/calls.log
+as JSON: argv, cwd, and the ARM_/TF_ variables it saw. `show -json` replays the clean guardrail
+fixture's plan. Switches (files in the state dir): `destroy` makes the plan delete one resource
+and replace another; `block` makes `plan` wait until the file is removed; `fail_<command>`
+makes that command exit 1.
+"""
+
+import json
+import os
+import secrets
+import sys
+import time
+from pathlib import Path
+
+PLAN = Path(__file__).resolve().parents[1] / "fixtures" / "guardrails" / "clean" / "plan.json"
+
+
+def main(args: list[str]) -> int:
+    state = Path(os.environ["LOWDEVOPS_FAKE_TF_STATE"])
+    state.mkdir(parents=True, exist_ok=True)
+    seen = {k: v for k, v in os.environ.items() if k.startswith(("ARM_", "TF_", "AZURE_"))}
+    with (state / "calls.log").open("a") as f:
+        f.write(json.dumps({"argv": args, "cwd": os.getcwd(), "env": seen}) + "\n")
+    command = args[0]
+    if (state / f"fail_{command}").exists():
+        print(f"Error: simulated {command} failure", file=sys.stderr)
+        return 1
+    files = [a for a in args[1:] if not a.startswith("-")]
+    if command == "init":
+        print("Initializing the backend...")
+        print("Terraform has been successfully initialized!")
+        return 0
+    if command == "plan":
+        while (state / "block").exists():
+            time.sleep(0.05)
+        out = next(a.removeprefix("-out=") for a in args if a.startswith("-out="))
+        Path(out).write_text(f"fake plan {secrets.token_hex(8)}\n")
+        if (state / "destroy").exists():
+            print("Plan: 3 to add, 0 to change, 2 to destroy.")
+        else:
+            print("Plan: 5 to add, 0 to change, 0 to destroy.")
+        return 0
+    if command == "show":
+        Path(files[0]).read_bytes()  # a missing plan fails like the real one
+        plan = json.loads(PLAN.read_text())
+        if (state / "destroy").exists():
+            plan["resource_changes"][0]["change"]["actions"] = ["delete"]
+            plan["resource_changes"][1]["change"]["actions"] = ["delete", "create"]
+        print(json.dumps(plan))
+        return 0
+    if command == "apply":
+        Path(files[0]).read_bytes()
+        print("Apply complete! Resources: 5 added, 0 changed, 0 destroyed.")
+        return 0
+    print(f"fake terraform: unsupported command {args}", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

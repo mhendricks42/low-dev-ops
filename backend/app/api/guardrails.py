@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from app.api.catalog import CATALOG
 from app.guardrails.findings import Finding
-from app.guardrails.run import check
+from app.guardrails.run import Report, check
 from app.model import Project, Waiver
 
 router = APIRouter(prefix="/api/guardrails")
@@ -33,7 +33,10 @@ def _waiver(w: Waiver) -> dict[str, Any]:
 # Plain `def`: the scanners are blocking subprocesses, so FastAPI runs this in a worker thread.
 @router.post("/check")
 def run_check(body: CheckRequest) -> dict[str, Any]:
-    report = check(body.project, CATALOG, body.plan)
+    return report_json(check(body.project, CATALOG, body.plan))
+
+
+def report_json(report: Report) -> dict[str, Any]:
     return {
         "findings": [_finding(f) for f in report.findings],
         "waived": [{"finding": _finding(f), "waiver": _waiver(w)} for f, w in report.waived],

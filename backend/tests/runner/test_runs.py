@@ -2,6 +2,7 @@
 
 import inspect
 import json
+import os
 import sys
 import threading
 from pathlib import Path
@@ -117,11 +118,14 @@ def test_memory_keeps_a_capped_log_but_the_file_keeps_everything(
 ) -> None:
     monkeypatch.setattr(runs, "MAX_LINES", 5)
     log = tmp_path / "run.log"
-    run = Run(id="r", key="k", kind="plan", log_file=log)
+    run = Run(id="r", key="k", kind="plan")
+    run.log_to(os.open(log, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600))
     for i in range(8):
         run.append(f"line {i}")
+    run.finish(0)
     assert run.lines == [*(f"line {i}" for i in range(5)), runs.TRUNCATED]
     assert log.read_text().splitlines() == [f"line {i}" for i in range(8)]
+    assert run.log_fd is None  # closed with the run
 
 
 def test_only_the_latest_run_per_key_is_kept() -> None:
