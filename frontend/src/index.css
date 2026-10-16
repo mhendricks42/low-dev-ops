@@ -158,3 +158,11 @@ pre {
   color: var(--danger);
   font-weight: 600;
 }
+
+/* Finding messages, subscription ids and addresses are long unbroken strings: let them wrap
+   rather than widen the page at 320 px (WCAG 1.4.10). Tables scroll in their own region. */
+.run p,
+.run li,
+.run label {
+  overflow-wrap: anywhere;
+}

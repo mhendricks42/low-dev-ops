@@ -158,6 +158,10 @@ test.describe('reflow at 320 CSS pixels (WCAG 1.4.10)', () => {
     await openRunTab(page)
     await bootstrapIfNeeded(page)
     await plan(page, '5 to add, 0 to change, 0 to destroy')
+    // A wide font, so the check does not depend on which fonts the machine has (CI's are wider).
+    await page.addStyleTag({
+      content: '* { font-family: monospace !important; font-size: 17px !important; }',
+    })
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     )
