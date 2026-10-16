@@ -7,6 +7,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
+from app.api.backends import GUID
 from app.api.guardrails import report_json
 from app.api.projects import Name
 from app.runner import terraform
@@ -20,7 +21,7 @@ class _Body(BaseModel):
 
 
 class PlanRequest(_Body):
-    subscription_id: str = Field(max_length=64)
+    subscription_id: str = Field(pattern=GUID)  # checked before it reaches az
 
 
 class ApplyRequest(_Body):

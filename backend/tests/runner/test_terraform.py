@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -21,6 +22,10 @@ def test_plan_runs_terraform_in_the_project_with_the_backend_and_records_the_pla
     monkeypatch.setenv("ARM_CLIENT_SECRET", "leak")
     monkeypatch.setenv("TF_VAR_admin_password", "leak")
     monkeypatch.setenv("ARM_SUBSCRIPTION_ID", "ffffffff-0000-0000-0000-000000000000")
+    monkeypatch.setenv("TF_CLI_ARGS_plan", "-var=admin_password=leak")
+    monkeypatch.setenv("TF_CLI_ARGS_init", "-backend-config=access_key=leak")
+    monkeypatch.setenv("TF_WORKSPACE", "other")
+    monkeypatch.setenv("ARM_ENVIRONMENT", "china")
     run = plan()
     assert run.status == "succeeded", run.lines
     calls = tf_calls(fake_tf)
@@ -69,6 +74,9 @@ def test_plan_needs_the_projects_own_subscription(project: Path, fake_tf: Path) 
     other = "ffffffff-0000-0000-0000-000000000000"
     response = client.post(f"/api/projects/{NAME}/runs/plan", json={"subscriptionId": other})
     assert response.status_code == 422
+    # Only a GUID reaches az, even if project.json holds something option-like.
+    response = client.post(f"/api/projects/{NAME}/runs/plan", json={"subscriptionId": "--debug"})
+    assert response.status_code == 422
     assert tf_calls(fake_tf) == []
     assert plan(SUB.upper()).status == "succeeded"  # ids compare case-insensitively
 
@@ -80,6 +88,11 @@ def test_plan_needs_az_access_and_a_bootstrapped_backend(
     response = client.post(f"/api/projects/{NAME}/runs/plan", json={"subscriptionId": SUB})
     assert response.status_code == 409 and "az login" in response.json()["detail"]["message"]
     (fake_az / "logged_out").unlink()
+    (fake_az / "no_access").write_text("")
+    response = client.post(f"/api/projects/{NAME}/runs/plan", json={"subscriptionId": SUB})
+    assert response.status_code == 409
+    assert "cannot use subscription" in response.json()["detail"]["message"]
+    (fake_az / "no_access").unlink()
     (tmp_path / "ws" / "settings.json").unlink()
     response = client.post(f"/api/projects/{NAME}/runs/plan", json={"subscriptionId": SUB})
     assert response.status_code == 409
@@ -103,6 +116,11 @@ def test_a_second_run_while_one_plans_is_409_with_its_id(project: Path, fake_tf:
     try:
         second = client.post(f"/api/projects/{NAME}/runs/plan", json={"subscriptionId": SUB})
         assert second.status_code == 409 and second.json()["detail"]["runId"] == run_id
+        apply = client.post(
+            f"/api/projects/{NAME}/runs/apply",
+            json={"planSha256": "0" * 64, "confirmName": NAME, "confirmDestroy": False},
+        )
+        assert apply.status_code == 409 and apply.json()["detail"]["runId"] == run_id
         running = client.get(f"/api/projects/{NAME}/runs/current").json()["run"]
         assert running["id"] == run_id and running["status"] == "running"
     finally:
@@ -127,3 +145,17 @@ def test_summary_counts_replaces_and_lists_what_is_destroyed() -> None:
     assert summary.destroys == ["c", "d", "e"]
     assert summary.text() == "3 to add, 1 to change, 3 to destroy"
     assert terraform.summarize(CLEAN_PLAN).count("create") == 5
+
+
+def test_run_log_never_writes_through_a_hard_link(project: Path, tmp_path: Path) -> None:
+    outside = tmp_path / "precious.txt"
+    outside.write_text("keep me\n")
+    os.link(outside, project / "run.log")
+    assert plan().status == "succeeded"
+    assert outside.read_text() == "keep me\n"
+    assert (project / "run.log").read_text().startswith("$ terraform init")
+
+
+def test_a_fifo_at_run_log_does_not_hang_the_run(project: Path) -> None:
+    os.mkfifo(project / "run.log")
+    assert plan().status == "succeeded"

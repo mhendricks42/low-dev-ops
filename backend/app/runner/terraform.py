@@ -112,9 +112,17 @@ def summarize(plan: dict[str, Any]) -> Summary:
 
 
 def terraform_env(subscription_id: str) -> dict[str, str]:
-    # Only the signed-in az user, only the confirmed subscription, never a prompt or TF_VAR_.
-    return azure.credential_free_env(
-        {"ARM_SUBSCRIPTION_ID": subscription_id, "TF_IN_AUTOMATION": "1", "TF_INPUT": "0"}
+    # Only the signed-in az user and the confirmed subscription. Every inherited TF_* and ARM_*
+    # is dropped (TF_CLI_ARGS_* could add -var or -backend-config, TF_WORKSPACE another state,
+    # ARM_ENVIRONMENT another cloud): terraform sees exactly the settings below.
+    return proc.inherited_env(
+        drop_prefixes=(*azure.CREDENTIAL_PREFIXES, "TF_", "ARM_"),
+        extra={
+            "ARM_USE_CLI": "true",
+            "ARM_SUBSCRIPTION_ID": subscription_id,
+            "TF_IN_AUTOMATION": "1",
+            "TF_INPUT": "0",
+        },
     )
 
 
@@ -133,7 +141,11 @@ def _sha256_at(dir_fd: int, filename: str) -> str | None:
 
 
 def _open_log(run: Run, dir_fd: int) -> None:
-    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW
+    # A fresh file each run: whatever is at run.log (a hard link to another file, a FIFO) is
+    # unlinked, never written through or waited on.
+    with suppress(FileNotFoundError):
+        os.unlink("run.log", dir_fd=dir_fd)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
     run.log_to(os.open("run.log", flags, 0o600, dir_fd=dir_fd))
 
 
@@ -244,6 +256,9 @@ def _stale(dir_fd: int, name: str, record: PlanRecord) -> str | None:
 
 
 def start_apply(name: str, plan_sha256: str, confirm_name: str, confirm_destroy: bool) -> Run:
+    active = REGISTRY.current(key(name))
+    if active is not None and active.status == "running":  # say which run, as a plan does
+        raise HTTPException(409, detail={"message": str(RunBusy(active)), "runId": active.id})
     record = plan_record(name)
     if record is None or record.plan_sha256 != plan_sha256:
         raise HTTPException(409, detail={"message": NO_PLAN})
