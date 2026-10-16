@@ -135,3 +135,15 @@ def test_a_timeout_kills_the_scanner_and_its_workers(
             return
         time.sleep(0.1)
     pytest.fail(f"worker {child} survived the timeout")
+
+
+def test_checkov_cannot_read_a_home_config(stub_scanners: Path) -> None:
+    # A ~/.checkov.yaml with skip-check could silence a curated check, so Checkov's HOME is its
+    # own empty temp workdir. The other scanners keep the real HOME.
+    project, plan = load_guardrail_fixture("clean")
+    check(project, CATALOG, plan)
+    calls = {
+        json.loads(line)[0]: json.loads(line)[-1] for line in stub_scanners.read_text().splitlines()
+    }
+    assert Path(f"{stub_scanners}.home.checkov").read_text() == calls["checkov"]
+    assert Path(f"{stub_scanners}.home.trivy").read_text() == os.environ["HOME"]

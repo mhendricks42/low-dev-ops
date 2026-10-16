@@ -12,6 +12,7 @@ import shutil
 import signal
 import subprocess
 from collections.abc import Iterator
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -50,7 +51,7 @@ def _env() -> dict[str, str]:
     return {k: v for k, v in os.environ.items() if not k.startswith(_CONFIG_PREFIXES)}
 
 
-def _run(args: list[str], cwd: Path, ok_codes: set[int]) -> Any:
+def _run(args: list[str], cwd: Path, ok_codes: set[int], env: dict[str, str] | None = None) -> Any:
     tool = args[0]
     binary = shutil.which(tool)  # an absolute path, resolved on the API's PATH
     if binary is None:
@@ -60,7 +61,7 @@ def _run(args: list[str], cwd: Path, ok_codes: set[int]) -> Any:
         subprocess.Popen(  # noqa: S603 - fixed argument list, no shell
             [binary, *args[1:]],
             cwd=cwd,
-            env=_env(),
+            env={**_env(), **(env or {})},
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -71,7 +72,8 @@ def _run(args: list[str], cwd: Path, ok_codes: set[int]) -> Any:
         try:
             stdout, stderr = process.communicate(timeout=TIMEOUT_SECONDS)
         except subprocess.TimeoutExpired as e:
-            os.killpg(process.pid, signal.SIGKILL)
+            with suppress(ProcessLookupError):  # the whole group may have just exited
+                os.killpg(process.pid, signal.SIGKILL)
             process.communicate()
             raise ScannerError(f"{tool} took longer than {TIMEOUT_SECONDS} s") from e
     if process.returncode not in ok_codes:
@@ -183,7 +185,8 @@ def checkov(project: Project, plan: dict[str, Any], workdir: Path) -> list[Findi
         "--check",
         ",".join(sorted(checks)),
     ]
-    data = _run(args, workdir, ok_codes={0, 1})  # 1 means "a check failed"
+    # HOME is the empty workdir, so no ~/.checkov.yaml can skip a curated check.
+    data = _run(args, workdir, ok_codes={0, 1}, env={"HOME": str(workdir)})  # 1: a check failed
     reports = data if isinstance(data, list) else [data]
     # A plan Checkov could not read prints a bare summary and exits 0: that is not "clean".
     scanned = [r for r in reports if isinstance(r, dict) and isinstance(r.get("results"), dict)]
