@@ -105,6 +105,7 @@ test('EC3: saving invalid HCL shows an inline error and leaves the model unchang
   await expect(page.getByRole('alert').filter({ hasText: 'HCL not saved' })).toContainText(
     '(line 2)',
   )
+  await expect(page.locator('.monaco-editor .squiggly-error')).toBeVisible() // marker on the line
 
   expect(await (await page.request.get(`/api/projects/${name}`)).json()).toEqual(before)
   await page.getByRole('tab', { name: 'Wizard' }).click()
@@ -164,6 +165,10 @@ test('EC4: keyboard only, create resources and add a reference', async ({ page }
   await tabTo(page, page.getByRole('tab', { name: 'Wizard' }))
   await page.keyboard.press('ArrowRight')
   await expect(page.getByRole('tab', { name: 'Canvas' })).toHaveAttribute('aria-selected', 'true')
+
+  const rgNode = page.locator('.react-flow__node[data-id="rg1"]')
+  await tabTo(page, rgNode)
+  await expect(rgNode).toHaveCSS('outline-style', 'solid') // visible focus (WCAG 2.4.7)
 
   const opener = page.getByRole('button', { name: 'Add reference to vnet1' })
   await tabTo(page, opener)

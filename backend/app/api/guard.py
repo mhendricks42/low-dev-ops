@@ -35,7 +35,9 @@ class LocalOnlyMiddleware:
             await _error(403, "cross-origin write refused")(scope, receive, send)
             return
         length = headers.get("content-length")
-        if length is not None and (not length.isdigit() or int(length) > MAX_BODY_BYTES):
+        if length is not None and not (
+            length.isascii() and length.isdigit() and int(length) <= MAX_BODY_BYTES
+        ):
             await _error(413, "request body too large")(scope, receive, send)
             return
 

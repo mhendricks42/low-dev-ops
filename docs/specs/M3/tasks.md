@@ -12,3 +12,4 @@ One Conventional Commit per task. Exit criteria (EC) come from [ROADMAP](../../R
 - [x] T8 `feat(frontend)`: React Flow canvas (nesting, edges, allowed connections, layout) and the keyboard list view.
 - [x] T9 `test(frontend)`: Playwright for **EC1** wizard→canvas+HCL, **EC2** HCL→wizard, **EC3** invalid HCL, **EC4** keyboard only and **EC5** axe on every panel. Screenshots go in `docs/specs/M3/`.
 - [x] T10 `docs`: frontend/CLAUDE.md and backend/CLAUDE.md commands, with tasks ticked.
+- [x] T11 `fix(backend)`: request guards from the security review (Host and Origin allow-lists, 2 MB body cap, symlink refusals, atomic-write cleanup).
