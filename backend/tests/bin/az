@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Fake Azure CLI for tests: never calls Azure.
+
+State lives in LOWDEVOPS_FAKE_AZ_STATE (a directory): each resource is a file, so a create makes a
+later show succeed. Every call is appended to <state>/calls.log as a JSON argv list.
+Switches (files in the state dir): `logged_out` makes every call fail like a missing `az login`;
+`container_403` makes the next container create fail with a 403 (role not yet propagated).
+"""
+
+import json
+import os
+import sys
+from pathlib import Path
+
+SUB = "00000000-0000-0000-0000-000000000000"
+USER_ID = "11111111-2222-3333-4444-555555555555"
+
+
+def opt(args: list[str], *names: str) -> str:
+    for name in names:
+        if name in args:
+            return args[args.index(name) + 1]
+    raise SystemExit(f"fake az: missing {names[0]}")
+
+
+def out(value: object) -> int:
+    print(json.dumps(value))
+    return 0
+
+
+def fail(message: str, code: int = 1) -> int:
+    print(f"ERROR: {message}", file=sys.stderr)
+    return code
+
+
+def main(args: list[str]) -> int:
+    state = Path(os.environ["LOWDEVOPS_FAKE_AZ_STATE"])
+    state.mkdir(parents=True, exist_ok=True)
+    with (state / "calls.log").open("a") as f:
+        f.write(json.dumps(args) + "\n")
+    if (state / "logged_out").exists():
+        return fail("Please run 'az login' to setup account.")
+    words = [a for a in args if not a.startswith("-")]
+    exists = lambda key: (state / key).exists()  # noqa: E731
+    touch = lambda key: (state / key).write_text("{}")  # noqa: E731
+
+    if words[:2] == ["account", "show"]:
+        return out({
+            "id": SUB, "name": "Sandbox", "tenantId": "tenant-1",
+            "user": {"name": "sam@example.com", "type": "user"},
+        })
+    if words[:3] == ["ad", "signed-in-user", "show"]:
+        return out({"id": USER_ID, "userPrincipalName": "sam@example.com"})
+    if words[:2] == ["group", "show"]:
+        name = opt(args, "--name", "-n")
+        return out({"name": name, "id": f"/subscriptions/{SUB}/resourceGroups/{name}"}) if exists(f"group_{name}") else fail(f"Resource group '{name}' could not be found.", 3)
+    if words[:2] == ["group", "create"]:
+        name = opt(args, "--name", "-n")
+        touch(f"group_{name}")
+        return out({"name": name})
+    if words[:3] == ["storage", "account", "show"]:
+        name = opt(args, "--name", "-n")
+        rg = opt(args, "--resource-group", "-g")
+        account_id = f"/subscriptions/{SUB}/resourceGroups/{rg}/providers/Microsoft.Storage/storageAccounts/{name}"
+        return out({"name": name, "id": account_id}) if exists(f"st_{name}") else fail(f"The Resource 'Microsoft.Storage/storageAccounts/{name}' was not found (ResourceNotFound).", 3)
+    if words[:3] == ["storage", "account", "create"]:
+        name = opt(args, "--name", "-n")
+        touch(f"st_{name}")
+        return out({"name": name})
+    if words[:4] == ["storage", "account", "blob-service-properties", "show"]:
+        name = opt(args, "--account-name", "-n")
+        props = state / f"blobprops_{name}"
+        return out(json.loads(props.read_text()) if props.exists() else {"isVersioningEnabled": False, "deleteRetentionPolicy": {"enabled": False}, "containerDeleteRetentionPolicy": {"enabled": False}})
+    if words[:4] == ["storage", "account", "blob-service-properties", "update"]:
+        name = opt(args, "--account-name", "-n")
+        props = {"isVersioningEnabled": True, "deleteRetentionPolicy": {"enabled": True, "days": 30}, "containerDeleteRetentionPolicy": {"enabled": True, "days": 30}}
+        (state / f"blobprops_{name}").write_text(json.dumps(props))
+        return out(props)
+    if words[:3] == ["role", "assignment", "list"]:
+        return out([{"roleDefinitionName": "Storage Blob Data Contributor"}] if exists("role") else [])
+    if words[:3] == ["role", "assignment", "create"]:
+        touch("role")
+        return out({"roleDefinitionName": "Storage Blob Data Contributor"})
+    if words[:3] == ["storage", "container", "exists"]:
+        return out({"exists": exists("container")})
+    if words[:3] == ["storage", "container", "create"]:
+        if exists("container_403"):
+            (state / "container_403").unlink()
+            return fail("This request is not authorized to perform this operation using this permission. (AuthorizationPermissionMismatch) Status: 403")
+        touch("container")
+        return out({"created": True})
+    return fail(f"fake az: unsupported command {words}", 2)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
