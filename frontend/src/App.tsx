@@ -1,3 +1,4 @@
+import { Checks } from './checks/Checks'
 import { useEffect, useState } from 'react'
 import { Alert, Status, Tabs } from './design-system/components'
 import { ProjectProvider, useStore } from './model/store'
@@ -48,6 +49,7 @@ function Shell() {
             { id: 'wizard', label: 'Wizard', panel: <Wizard /> },
             { id: 'canvas', label: 'Canvas', panel: <Canvas /> },
             { id: 'hcl', label: 'HCL', panel: <HclView /> },
+            { id: 'checks', label: 'Checks', panel: <Checks /> },
           ]}
         />
       </main>
