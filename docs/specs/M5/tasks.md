@@ -15,7 +15,7 @@ One Conventional Commit per task. Exit criteria (EC) come from [ROADMAP](../../R
 - [x] A2 `feat(backend)`: run framework, `RunRegistry` with one run per key and logs, plus an SSE log endpoint (**EC2**, **EC3**).
 - [x] A3 `feat(backend)`: `app/azure.py` (`az` wrapper, account) and `app/settings.py` (atomic `settings.json`), with the fake `az` binary.
 - [x] A4 `feat(backend)`: `ensure_backend` bootstrap with check-then-create steps and a retry on 403, plus the account and bootstrap API (**EC5**).
-- [ ] A5 `docs`: ARCHITECTURE and backend CLAUDE.md for azure, settings, bootstrap and runs.
+- [x] A5 `docs`: ARCHITECTURE and backend CLAUDE.md for azure, settings, bootstrap and runs.
 
 ## PR B — `feat/m5-runner`
 
