@@ -10,18 +10,18 @@ M2 is backend-only, like M1: a library, its tests, a check script and a CI job. 
 
 One file per AVM module, named after the module. The model's `catalogRef` (`<module>@<version>`) points at exactly one entry.
 
-| Need | File | AVM module | CAF abbreviation |
-| --- | --- | --- | --- |
-| Resource group | `avm-res-resources-resourcegroup.yaml` | `Azure/avm-res-resources-resourcegroup/azurerm` | `rg` |
-| Virtual network | `avm-res-network-virtualnetwork.yaml` | `Azure/avm-res-network-virtualnetwork/azurerm` | `vnet` |
-| Network security group | `avm-res-network-networksecuritygroup.yaml` | `Azure/avm-res-network-networksecuritygroup/azurerm` | `nsg` |
-| Key Vault | `avm-res-keyvault-vault.yaml` | `Azure/avm-res-keyvault-vault/azurerm` | `kv` |
-| Storage account | `avm-res-storage-storageaccount.yaml` | `Azure/avm-res-storage-storageaccount/azurerm` | `st` |
-| App Service plan | `avm-res-web-serverfarm.yaml` | `Azure/avm-res-web-serverfarm/azurerm` | `asp` |
-| App Service and Functions | `avm-res-web-site.yaml` | `Azure/avm-res-web-site/azurerm` | `app` / `func` by `kind` |
-| Container Apps environment | `avm-res-app-managedenvironment.yaml` | `Azure/avm-res-app-managedenvironment/azurerm` | `cae` |
-| Container app | `avm-res-app-containerapp.yaml` | `Azure/avm-res-app-containerapp/azurerm` | `ca` |
-| AKS | `avm-res-containerservice-managedcluster.yaml` | `Azure/avm-res-containerservice-managedcluster/azurerm` | `aks` |
+| Need                       | File                                           | AVM module                                              | CAF abbreviation         |
+| -------------------------- | ---------------------------------------------- | ------------------------------------------------------- | ------------------------ |
+| Resource group             | `avm-res-resources-resourcegroup.yaml`         | `Azure/avm-res-resources-resourcegroup/azurerm`         | `rg`                     |
+| Virtual network            | `avm-res-network-virtualnetwork.yaml`          | `Azure/avm-res-network-virtualnetwork/azurerm`          | `vnet`                   |
+| Network security group     | `avm-res-network-networksecuritygroup.yaml`    | `Azure/avm-res-network-networksecuritygroup/azurerm`    | `nsg`                    |
+| Key Vault                  | `avm-res-keyvault-vault.yaml`                  | `Azure/avm-res-keyvault-vault/azurerm`                  | `kv`                     |
+| Storage account            | `avm-res-storage-storageaccount.yaml`          | `Azure/avm-res-storage-storageaccount/azurerm`          | `st`                     |
+| App Service plan           | `avm-res-web-serverfarm.yaml`                  | `Azure/avm-res-web-serverfarm/azurerm`                  | `asp`                    |
+| App Service and Functions  | `avm-res-web-site.yaml`                        | `Azure/avm-res-web-site/azurerm`                        | `app` / `func` by `kind` |
+| Container Apps environment | `avm-res-app-managedenvironment.yaml`          | `Azure/avm-res-app-managedenvironment/azurerm`          | `cae`                    |
+| Container app              | `avm-res-app-containerapp.yaml`                | `Azure/avm-res-app-containerapp/azurerm`                | `ca`                     |
+| AKS                        | `avm-res-containerservice-managedcluster.yaml` | `Azure/avm-res-containerservice-managedcluster/azurerm` | `aks`                    |
 
 App Service and Functions share the `web/site` module, so they are one entry with a basic `kind` input (`webapp` or `functionapp`). The RG, VNet and NSG pins stay at the versions the M1 fixtures use (0.4.0, 0.22.3, 0.6.0). The other pins are the latest release when the entry is written. No raw `azurerm`/`azapi` entries are needed, so the `rawReason` field below stays unused in M2.
 
@@ -29,21 +29,30 @@ App Service and Functions share the `web/site` module, so they are one entry wit
 
 ```yaml
 schemaVersion: 1
-module: avm-res-network-virtualnetwork   # must equal the file name
-version: 0.22.3                          # exact semver, no ranges
+module: avm-res-network-virtualnetwork # must equal the file name
+version: 0.22.3 # exact semver, no ranges
 title: Virtual network
-category: foundation                     # foundation | compute
+category: foundation # foundation | compute
 cafAbbreviation: vnet
 inputs:
-  name:          { tier: basic, fill: name }       # filled from naming (M4)
-  location:      { tier: basic, fill: location }   # filled from subscription.location
-  address_space: { tier: basic, default: ["10.0.0.0/16"], description: "Address ranges in CIDR form." }
-  subnets:       { tier: advanced }
+  name: { tier: basic, fill: name } # filled from naming (M4)
+  location: { tier: basic, fill: location } # filled from subscription.location
+  address_space:
+    {
+      tier: basic,
+      default: ["10.0.0.0/16"],
+      description: "Address ranges in CIDR form.",
+    }
+  subnets: { tier: advanced }
   enable_telemetry: { tier: hidden, default: false }
-refs:                                    # inputs another resource's output may set
-  - { input: parent_id, from: avm-res-resources-resourcegroup, output: resource_id }
+refs: # inputs another resource's output may set
+  - {
+      input: parent_id,
+      from: avm-res-resources-resourcegroup,
+      output: resource_id,
+    }
 outputs: [name, resource, resource_id]
-example: example.json                    # optional override; see below
+example: example.json # optional override; see below
 ```
 
 - `tier: basic` inputs must have a `default`, a `fill` (`name` or `location`), or be set by an allowed ref. That is the "basic inputs have CAF defaults" rule.
@@ -62,7 +71,7 @@ example: example.json                    # optional override; see below
   2. `terraform init -backend=false` (argument list, explicit timeout). Init resolving `version` exactly proves the pin exists in the registry.
   3. Read the downloaded module's `variables.tf` and `outputs.tf` with python-hcl2. Every catalog input and output must exist in the module, every required module variable must be in the catalog, and every module variable not listed is reported (see Decision).
   4. `terraform validate`.
-  It exits non-zero on the first failing entry and names the entry and step.
+     It exits non-zero on the first failing entry and names the entry and step.
 
 ## Files touched
 
@@ -78,13 +87,13 @@ example: example.json                    # optional override; see below
 
 ## Exit criteria → proof
 
-| Criterion | Proof |
-| --- | --- |
-| Every YAML passes the catalog schema | `test_load.py` loads the real catalog; each bad-entry fixture fails for its stated reason |
-| Every AVM pin exists in the registry | `check-catalog` step 2, in the CI job |
-| Every example passes `terraform validate` | `check-catalog` step 4, in the CI job |
-| Basic inputs have CAF defaults | `test_entries.py`, parametrized over every entry |
-| Allowed refs point at real outputs | `test_entries.py` (output listed in the target entry) and `check-catalog` step 3 (output exists in the module) |
+| Criterion                                 | Proof                                                                                                          |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Every YAML passes the catalog schema      | `test_load.py` loads the real catalog; each bad-entry fixture fails for its stated reason                      |
+| Every AVM pin exists in the registry      | `check-catalog` step 2, in the CI job                                                                          |
+| Every example passes `terraform validate` | `check-catalog` step 4, in the CI job                                                                          |
+| Basic inputs have CAF defaults            | `test_entries.py`, parametrized over every entry                                                               |
+| Allowed refs point at real outputs        | `test_entries.py` (output listed in the target entry) and `check-catalog` step 3 (output exists in the module) |
 
 ## Decision: inputs the catalog doesn't list
 
