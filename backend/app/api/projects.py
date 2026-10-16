@@ -4,6 +4,7 @@ import errno
 import os
 import re
 import secrets
+import stat
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
 from dataclasses import asdict
@@ -15,6 +16,7 @@ from fastapi import Path as PathParam
 from pydantic import BaseModel, ValidationError
 
 from app.api.catalog import CATALOG
+from app.api.guard import MAX_BODY_BYTES
 from app.catalog.check_project import check_project
 from app.hcl.generate import generate
 from app.model import Project
@@ -60,9 +62,13 @@ def _open_project_dir(name: str, *, create: bool) -> Iterator[int]:
         except FileNotFoundError as e:
             raise HTTPException(404, detail={"message": f"no project '{name}'"}) from e
         except OSError as e:
-            if e.errno in (errno.ELOOP, errno.ENOTDIR):
+            if e.errno == errno.ELOOP:
                 raise HTTPException(
                     422, detail={"message": "project directory is a symlink"}
+                ) from e
+            if e.errno == errno.ENOTDIR:
+                raise HTTPException(
+                    422, detail={"message": "project path is not a directory"}
                 ) from e
             raise
     finally:
@@ -77,10 +83,13 @@ def _write_atomic(dir_fd: int, filename: str, text: str) -> None:
     tmp = f".{filename}.{secrets.token_hex(8)}.tmp"
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=dir_fd)
     try:
-        with os.fdopen(fd, "w") as f:
-            f.write(text)
-            f.flush()
-            os.fsync(f.fileno())
+        try:
+            data = memoryview(text.encode())
+            while data:
+                data = data[os.write(fd, data) :]
+            os.fsync(fd)
+        finally:
+            os.close(fd)
         # Replaces a symlink at `filename` rather than writing through it.
         os.replace(tmp, filename, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
     except BaseException:
@@ -107,17 +116,27 @@ def list_projects() -> dict[str, list[str]]:
 def get_project(name: Name) -> dict[str, Any]:
     with _open_project_dir(name, create=False) as dir_fd:
         try:
-            fd = os.open("project.json", os.O_RDONLY | os.O_NOFOLLOW, dir_fd=dir_fd)
+            fd = os.open("project.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=dir_fd)
         except FileNotFoundError as e:
             raise HTTPException(404, detail={"message": f"no project '{name}'"}) from e
         except OSError as e:
             if e.errno == errno.ELOOP:
                 raise HTTPException(422, detail={"message": "project.json is a symlink"}) from e
             raise
-        with os.fdopen(fd) as f:
-            text = f.read()
+        try:
+            # O_NONBLOCK so a FIFO cannot block the open; then only a small regular file is read.
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode):
+                raise HTTPException(422, detail={"message": "project.json is not a regular file"})
+            if info.st_size > MAX_BODY_BYTES:
+                raise HTTPException(422, detail={"message": "project.json is too large"})
+            data = os.read(fd, MAX_BODY_BYTES + 1)
+        finally:
+            os.close(fd)
+    if len(data) > MAX_BODY_BYTES:  # grew after the fstat
+        raise HTTPException(422, detail={"message": "project.json is too large"})
     try:
-        project = Project.model_validate_json(text)
+        project = Project.model_validate_json(data)
     except ValidationError as e:
         raise HTTPException(422, detail={"message": f"project.json is invalid: {e}"}) from e
     return {"project": project.model_dump(mode="json", by_alias=True)}
