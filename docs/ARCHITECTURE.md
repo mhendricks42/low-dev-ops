@@ -144,5 +144,7 @@ Pydantic models in `backend/app` are the source. The JSON Schema is generated fr
 - The API binds to `127.0.0.1` only. There is no authentication because there is one user on one machine.
 - The app never stores credentials. Terraform uses `ARM_USE_CLI=true` with the host's mounted `~/.azure`.
 - Every subprocess call passes its arguments as a list (no shell). Project names and resource IDs are checked against a strict pattern before they reach a path or a command.
+- Every subprocess goes through `backend/app/proc.py`: the binary is resolved to an absolute path, runs in its own process group (a timeout kills it and its workers), and gets an explicit environment. `az` and `terraform` never see service-principal variables (`AZURE_CLIENT_*`, `ARM_CLIENT_*`, `ARM_OIDC_*` and the like), so they act only as the signed-in user.
+- Runs (bootstrap, plan, apply) are one at a time per key, with their log streamed as Server-Sent Events (`GET /api/runs/{id}/log`). Local settings (`<workspace>/settings.json`) record each subscription's state backend and hold no secrets.
 - Apply runs only the reviewed `plan.tfplan`, needs typed confirmation, and needs a second confirmation for any destroy or replacement.
 - State lives only in Azure Storage. `.gitignore` excludes `*.tfstate`, `*.tfplan` and `*.tfvars`.
