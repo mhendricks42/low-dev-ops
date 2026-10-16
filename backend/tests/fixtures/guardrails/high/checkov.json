@@ -1,0 +1,53 @@
+{
+    "check_type": "terraform_plan",
+    "results": {
+        "failed_checks": [
+            {
+                "check_id": "CKV_AZURE_44",
+                "bc_check_id": null,
+                "check_name": "Ensure Storage Account is using the latest version of TLS encryption",
+                "check_result": {
+                    "result": "FAILED",
+                    "evaluated_keys": [
+                        "min_tls_version"
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/plan.json",
+                "file_abs_path": "/tmp/lowdevops-checkov-s9n7xv9s/plan.json",
+                "repo_file_path": "/plan.json",
+                "file_line_range": [
+                    0,
+                    0
+                ],
+                "resource": "module.st1.azurerm_storage_account.this",
+                "evaluations": null,
+                "check_class": "checkov.terraform.checks.resource.azure.StorageAccountMinimumTlsVersion",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": "module.st1.azurerm_storage_account.this",
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            }
+        ]
+    },
+    "summary": {
+        "passed": 8,
+        "failed": 1,
+        "skipped": 0,
+        "parsing_errors": 0,
+        "resource_count": 5,
+        "checkov_version": "3.3.29"
+    }
+}

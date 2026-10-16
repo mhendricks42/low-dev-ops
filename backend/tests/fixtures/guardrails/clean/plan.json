@@ -1,0 +1,295 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.16.6",
+  "planned_values": {
+    "root_module": {
+      "child_modules": [
+        {
+          "address": "module.rg1",
+          "resources": [
+            {
+              "address": "module.rg1.azurerm_resource_group.this",
+              "mode": "managed",
+              "type": "azurerm_resource_group",
+              "name": "this",
+              "provider_name": "registry.terraform.io/hashicorp/azurerm",
+              "values": {
+                "name": "rg-webapp-dev-weu",
+                "location": "westeurope",
+                "tags": {
+                  "env": "dev",
+                  "owner": "platform-team"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "address": "module.st1",
+          "resources": [
+            {
+              "address": "module.st1.azurerm_storage_account.this",
+              "mode": "managed",
+              "type": "azurerm_storage_account",
+              "name": "this",
+              "provider_name": "registry.terraform.io/hashicorp/azurerm",
+              "values": {
+                "name": "stwebappdevweu",
+                "location": "westeurope",
+                "resource_group_name": "rg-webapp-dev-weu",
+                "account_tier": "Standard",
+                "account_replication_type": "ZRS",
+                "min_tls_version": "TLS1_2",
+                "public_network_access_enabled": false,
+                "allow_nested_items_to_be_public": false,
+                "https_traffic_only_enabled": true,
+                "shared_access_key_enabled": false,
+                "network_rules": [
+                  {
+                    "default_action": "Deny",
+                    "bypass": [
+                      "AzureServices"
+                    ],
+                    "ip_rules": [],
+                    "virtual_network_subnet_ids": []
+                  }
+                ],
+                "tags": {
+                  "env": "dev",
+                  "owner": "platform-team"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "address": "module.kv1",
+          "resources": [
+            {
+              "address": "module.kv1.azurerm_key_vault.this",
+              "mode": "managed",
+              "type": "azurerm_key_vault",
+              "name": "this",
+              "provider_name": "registry.terraform.io/hashicorp/azurerm",
+              "values": {
+                "name": "kv-webapp-dev-weu",
+                "location": "westeurope",
+                "resource_group_name": "rg-webapp-dev-weu",
+                "sku_name": "premium",
+                "tenant_id": "11111111-1111-1111-1111-111111111111",
+                "purge_protection_enabled": true,
+                "soft_delete_retention_days": 90,
+                "public_network_access_enabled": false,
+                "enable_rbac_authorization": true,
+                "network_acls": [
+                  {
+                    "default_action": "Deny",
+                    "bypass": "AzureServices",
+                    "ip_rules": [],
+                    "virtual_network_subnet_ids": []
+                  }
+                ],
+                "tags": {
+                  "env": "dev",
+                  "owner": "platform-team"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "address": "module.nsg1",
+          "resources": [
+            {
+              "address": "module.nsg1.azurerm_network_security_group.this",
+              "mode": "managed",
+              "type": "azurerm_network_security_group",
+              "name": "this",
+              "provider_name": "registry.terraform.io/hashicorp/azurerm",
+              "values": {
+                "name": "nsg-webapp-dev-weu",
+                "location": "westeurope",
+                "resource_group_name": "rg-webapp-dev-weu",
+                "tags": {
+                  "env": "dev",
+                  "owner": "platform-team"
+                }
+              }
+            },
+            {
+              "address": "module.nsg1.azurerm_network_security_rule.this['allow_https']",
+              "mode": "managed",
+              "type": "azurerm_network_security_rule",
+              "name": "this['allow_https']",
+              "provider_name": "registry.terraform.io/hashicorp/azurerm",
+              "values": {
+                "name": "allow-https",
+                "priority": 100,
+                "direction": "Inbound",
+                "access": "Allow",
+                "protocol": "Tcp",
+                "source_port_range": "*",
+                "destination_port_range": "443",
+                "source_address_prefix": "VirtualNetwork",
+                "destination_address_prefix": "*",
+                "resource_group_name": "rg-webapp-dev-weu",
+                "network_security_group_name": "nsg-webapp-dev-weu"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "module.rg1.azurerm_resource_group.this",
+      "module_address": "module.rg1",
+      "mode": "managed",
+      "type": "azurerm_resource_group",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "rg-webapp-dev-weu",
+          "location": "westeurope",
+          "tags": {
+            "env": "dev",
+            "owner": "platform-team"
+          }
+        }
+      }
+    },
+    {
+      "address": "module.st1.azurerm_storage_account.this",
+      "module_address": "module.st1",
+      "mode": "managed",
+      "type": "azurerm_storage_account",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "stwebappdevweu",
+          "location": "westeurope",
+          "resource_group_name": "rg-webapp-dev-weu",
+          "account_tier": "Standard",
+          "account_replication_type": "ZRS",
+          "min_tls_version": "TLS1_2",
+          "public_network_access_enabled": false,
+          "allow_nested_items_to_be_public": false,
+          "https_traffic_only_enabled": true,
+          "shared_access_key_enabled": false,
+          "network_rules": [
+            {
+              "default_action": "Deny",
+              "bypass": [
+                "AzureServices"
+              ],
+              "ip_rules": [],
+              "virtual_network_subnet_ids": []
+            }
+          ],
+          "tags": {
+            "env": "dev",
+            "owner": "platform-team"
+          }
+        }
+      }
+    },
+    {
+      "address": "module.kv1.azurerm_key_vault.this",
+      "module_address": "module.kv1",
+      "mode": "managed",
+      "type": "azurerm_key_vault",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "kv-webapp-dev-weu",
+          "location": "westeurope",
+          "resource_group_name": "rg-webapp-dev-weu",
+          "sku_name": "premium",
+          "tenant_id": "11111111-1111-1111-1111-111111111111",
+          "purge_protection_enabled": true,
+          "soft_delete_retention_days": 90,
+          "public_network_access_enabled": false,
+          "enable_rbac_authorization": true,
+          "network_acls": [
+            {
+              "default_action": "Deny",
+              "bypass": "AzureServices",
+              "ip_rules": [],
+              "virtual_network_subnet_ids": []
+            }
+          ],
+          "tags": {
+            "env": "dev",
+            "owner": "platform-team"
+          }
+        }
+      }
+    },
+    {
+      "address": "module.nsg1.azurerm_network_security_group.this",
+      "module_address": "module.nsg1",
+      "mode": "managed",
+      "type": "azurerm_network_security_group",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "nsg-webapp-dev-weu",
+          "location": "westeurope",
+          "resource_group_name": "rg-webapp-dev-weu",
+          "tags": {
+            "env": "dev",
+            "owner": "platform-team"
+          }
+        }
+      }
+    },
+    {
+      "address": "module.nsg1.azurerm_network_security_rule.this['allow_https']",
+      "module_address": "module.nsg1",
+      "mode": "managed",
+      "type": "azurerm_network_security_rule",
+      "name": "this['allow_https']",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "allow-https",
+          "priority": 100,
+          "direction": "Inbound",
+          "access": "Allow",
+          "protocol": "Tcp",
+          "source_port_range": "*",
+          "destination_port_range": "443",
+          "source_address_prefix": "VirtualNetwork",
+          "destination_address_prefix": "*",
+          "resource_group_name": "rg-webapp-dev-weu",
+          "network_security_group_name": "nsg-webapp-dev-weu"
+        }
+      }
+    }
+  ]
+}

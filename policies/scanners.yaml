@@ -1,0 +1,19 @@
+# Scanner checks LowDevOps uses, and the severity it gives each (M4).
+# Checkov runs only these (--check); Trivy findings not listed here are dropped.
+# Everything else the scanners know is best practice (private endpoints, customer-managed keys,
+# diagnostic logs) that would block every sandbox. Add a line to adopt a check.
+# critical/high block apply; medium/low can be waived with a reason (PRD).
+checkov:
+  CKV_AZURE_44: high # storage: minimum TLS 1.2
+  CKV_AZURE_59: medium # storage: public network access
+  CKV_AZURE_190: medium # storage: anonymous blob access
+  CKV_AZURE_110: high # key vault: purge protection
+  CKV_AZURE_42: high # key vault: recoverable (soft delete + purge protection)
+  CKV_AZURE_9: high # NSG: RDP open to the internet
+  CKV_AZURE_10: high # NSG: SSH open to the internet
+trivy:
+  AZU-0011: critical # storage: minimum TLS 1.2
+  AZU-0059: high # storage: secure transfer and minimum TLS
+  AZU-0016: high # key vault: purge protection
+  AZU-0050: critical # NSG: SSH open to the internet
+  AZU-0047: medium # NSG: unrestricted ingress (public web endpoints are often intended)
