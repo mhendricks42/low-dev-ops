@@ -1,5 +1,6 @@
 // Pure helpers over the catalog: which control an input gets, new resources, allowed refs.
 import type { CatalogEntry, InputSpec } from './catalog-entry'
+import { cafName } from './naming'
 import type { Project, Ref, Resource } from './project'
 
 export type Control = 'text' | 'checkbox' | 'number' | 'json'
@@ -32,13 +33,11 @@ export function nextId(p: Project, abbreviation: string): string {
   return `${abbreviation}${n}`
 }
 
-// shortcut: plain pattern substitution, no CAF length/character rules; those are M4 naming.
+// The CAF name for a new resource, fitted to the type's limits (M4). `kind` is the entry's
+// default kind, e.g. functionapp gives func-*.
 export function suggestedName(entry: CatalogEntry, p: Project): string {
-  return p.naming.pattern
-    .replaceAll('{type}', entry.cafAbbreviation)
-    .replaceAll('{workload}', p.naming.workload)
-    .replaceAll('{env}', p.naming.env)
-    .replaceAll('{region}', p.naming.region)
+  const kind = entry.inputs.kind ? defaultOf(entry.inputs.kind) : undefined
+  return cafName(entry, p.naming, typeof kind === 'string' ? kind : undefined)
 }
 
 export function newResource(entry: CatalogEntry, p: Project, id: string): Resource {
