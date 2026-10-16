@@ -77,7 +77,7 @@ The values come from Microsoft's "Naming rules and restrictions for Azure resour
 ## Tags
 
 - **Required tags:** `Project` gains `required_tags: list[str] = ["env", "owner"]` (`requiredTags` in JSON). This is the CAF minimum, and you can change it per project. `schemaVersion` stays 1, because the default keeps old files valid.
-- **Generator:** a resource whose entry has a `tags` input gets project `tags` merged under its own (the resource's keys win) and emitted as the module's `tags`. This changes generated HCL, so the M1 snapshots are updated in the same PR (CLAUDE.md rule). The parser maps the merged value back, so round-trips stay equal: it drops keys equal to the project value.
+- **Generator:** every module gets project `tags` merged under its own (the resource's keys win), emitted as the module's `tags`. The generator has no catalog (M1), and every AVM resource module must accept `tags` under the AVM interface spec, which the catalog's `avm-*` pin pattern guarantees (ADR-0003). This changes generated HCL, so the M1 snapshots are updated in the same PR (CLAUDE.md rule). The parser maps the merged value back, so round-trips stay equal: it drops keys equal to the project value.
 
 ## API
 
