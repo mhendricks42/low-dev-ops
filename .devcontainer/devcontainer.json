@@ -3,7 +3,10 @@
   "build": { "dockerfile": "Dockerfile" },
   "remoteUser": "vscode",
   // Terraform authenticates with the host's az login; the app never stores credentials.
-  "mounts": ["source=${localEnv:HOME}/.azure,target=/home/vscode/.azure,type=bind"],
+  // HOME on macOS/Linux, USERPROFILE on Windows (only one of them is set).
+  "mounts": [
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.azure,target=/home/vscode/.azure,type=bind"
+  ],
   "remoteEnv": { "ARM_USE_CLI": "true" },
   "forwardPorts": [5173, 8000],
   "postCreateCommand": "make install && cd frontend && npx playwright install --with-deps chromium",

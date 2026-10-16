@@ -22,8 +22,10 @@ RUN case "$TARGETARCH" in \
     esac \
  && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE}.tar.xz" \
     | tar -xJ -C /usr/local --strip-components=1 \
- # The npm bundled with Node lags behind on security fixes.
- && npm install -g --no-fund --no-audit "npm@${NPM_VERSION}" && npm cache clean --force \
+ # The npm bundled with Node lags behind on security fixes. Fetch it with curl like every other
+ # tool and install it offline: Node's own TLS to the registry fails behind some firewalls.
+ && curl -fsSLo /tmp/npm.tgz "https://registry.npmjs.org/npm/-/npm-${NPM_VERSION}.tgz" \
+ && npm install -g --offline --no-fund --no-audit /tmp/npm.tgz && npm cache clean --force \
  && curl -fsSLo /tmp/tf.zip "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip" \
  && unzip -o /tmp/tf.zip terraform -d /usr/local/bin \
  && curl -fsSLo /tmp/tflint.zip "https://github.com/terraform-linters/tflint/releases/download/v${TFLINT_VERSION}/tflint_linux_${TARGETARCH}.zip" \
@@ -32,7 +34,7 @@ RUN case "$TARGETARCH" in \
     | tar -xz -C /usr/local/bin trivy \
  && curl -fsSL "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_${CONFTEST}.tar.gz" \
     | tar -xz -C /usr/local/bin conftest \
- && rm -f /tmp/*.zip
+ && rm -f /tmp/*.zip /tmp/npm.tgz
 
 # Python CLIs live in isolated uv tool envs, outside the project venv.
 ENV UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin
