@@ -29,4 +29,5 @@ module "vnet1" {
   location         = "westeurope"
   name             = "vnet-webapp-dev-weu"
   parent_id        = module.rg1.resource_id
+  tags             = { env = "dev", owner = "platform-team" }
 }

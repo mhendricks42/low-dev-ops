@@ -190,6 +190,18 @@ def _check_split(tree: dict[str, Any], chunks: list[Chunk]) -> None:
         raise HclParseError("could not split the file into blocks unambiguously")
 
 
+def _without_project_tags(
+    inputs: dict[str, JsonValue], tags: dict[str, str]
+) -> dict[str, JsonValue]:
+    # The generator merges project tags into every module; keep only the resource's own.
+    own = inputs.get("tags")
+    if not isinstance(own, dict):
+        return inputs
+    kept = {k: v for k, v in own.items() if tags.get(k) != v}
+    rest = {k: v for k, v in inputs.items() if k != "tags"}
+    return {**rest, "tags": kept} if kept else rest
+
+
 def parse(hcl: str, previous: Project) -> Project:
     """Parse a main.tf back into a model. Fields HCL does not carry come from `previous`."""
     try:
@@ -222,6 +234,7 @@ def parse(hcl: str, previous: Project) -> Project:
             update={
                 "parent": old[r.id].parent if r.id in old and old[r.id].parent in ids else None,
                 "layout": old[r.id].layout if r.id in old else None,
+                "inputs": _without_project_tags(r.inputs, previous.tags),
             }
         )
         for _, r in sorted(mapped.items())

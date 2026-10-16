@@ -28,11 +28,7 @@
       "inputs": {
         "enable_telemetry": false,
         "location": "westeurope",
-        "name": "rg-webapp-dev-weu",
-        "tags": {
-          "env": "dev",
-          "owner": "platform-team"
-        }
+        "name": "rg-webapp-dev-weu"
       },
       "refs": [],
       "layout": {

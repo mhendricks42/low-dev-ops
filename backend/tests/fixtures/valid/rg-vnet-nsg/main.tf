@@ -29,6 +29,7 @@ module "vnet1" {
   location         = "westeurope"
   name             = "vnet-webapp-dev-weu"
   parent_id        = module.rg1.resource_id
+  tags             = { env = "dev", owner = "platform-team" }
 }
 
 module "nsg1" {
@@ -40,4 +41,5 @@ module "nsg1" {
   name             = "nsg-webapp-dev-weu"
   parent_id        = module.rg1.resource_id
   security_rules   = { allow_https = { access = "Allow", destination_address_prefix = "*", destination_port_range = "443", direction = "Inbound", name = "allow-https", priority = 100, protocol = "Tcp", source_address_prefix = "Internet", source_port_range = "*" } }
+  tags             = { env = "dev", owner = "platform-team" }
 }

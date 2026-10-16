@@ -51,9 +51,14 @@ def test_edited_value_reaches_model() -> None:
     assert parse(text, previous).resources[0].inputs["name"] == "rg-renamed"
 
 
+def untagged() -> Project:
+    # For byte-for-byte regeneration checks: project tags would be merged into every module.
+    return load_project("rg").model_copy(update={"tags": {}})
+
+
 def test_string_escapes_decode_and_regenerate_identically() -> None:
     text = hcl(RG.replace('"rg-a"', '"a\\"b\\\\c$${x}%%{y}\\n"'))
-    parsed = parse(text, load_project("rg"))
+    parsed = parse(text, untagged())
     assert parsed.resources[0].inputs["name"] == 'a"b\\c${x}%{y}\n'
     assert generate(parsed) == text
 
@@ -222,7 +227,7 @@ def test_identical_smuggled_module_is_refused(space: str) -> None:
     )
     original = hcl2.loads(text)
     try:
-        parsed = parse(text, load_project("rg"))
+        parsed = parse(text, untagged())
     except HclParseError:
         return
     assert hcl2.loads(generate(parsed)) == original  # whatever is kept must mean the same

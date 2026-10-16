@@ -44,3 +44,20 @@ def test_generate_is_deterministic() -> None:
 )
 def test_render_value(value: object, hcl: str) -> None:
     assert render_value(value) == hcl  # type: ignore[arg-type]  # parametrize erases the JsonValue type
+
+
+def test_project_tags_merge_under_resource_tags() -> None:
+    # M4: every AVM resource module takes `tags`; the resource's own keys win.
+    project = load_project("rg")
+    rg = project.resources[0].model_copy(update={"inputs": {"tags": {"owner": "app-team"}}})
+    project = project.model_copy(
+        update={"tags": {"env": "dev", "owner": "platform-team"}, "resources": [rg]}
+    )
+    assert '  tags = { env = "dev", owner = "app-team" }' in generate(project)
+
+
+def test_no_project_tags_adds_nothing() -> None:
+    project = load_project("rg")
+    rg = project.resources[0].model_copy(update={"inputs": {}})
+    project = project.model_copy(update={"tags": {}, "resources": [rg]})
+    assert "tags" not in generate(project)
