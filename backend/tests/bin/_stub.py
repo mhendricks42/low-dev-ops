@@ -23,6 +23,8 @@ def main(tool: str) -> int:
             f.write(
                 json.dumps([tool, *sys.argv[1:], f"env:{','.join(config)}", os.getcwd()]) + "\n"
             )
+    if log:  # HOME as the scanner saw it: Checkov reads ~/.checkov.yaml from there
+        Path(f"{log}.home.{tool}").write_text(os.environ.get("HOME", ""))
     mode = os.environ.get("LOWDEVOPS_STUB_MODE", "")
     if mode == "crash":
         print(f"{tool}: simulated crash", file=sys.stderr)
