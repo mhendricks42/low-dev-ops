@@ -1,3 +1,4 @@
+import json
 import os
 from collections.abc import Iterator
 from pathlib import Path
@@ -130,8 +131,17 @@ def test_symlinked_project_dir_is_not_read(workspace: Path) -> None:
     assert client.get("/api/projects/webapp-dev").status_code == 422
 
 
-@pytest.mark.parametrize("kind", ["fifo", "directory", "oversized"])
-def test_project_file_that_is_not_a_small_regular_file_is_422(workspace: Path, kind: str) -> None:
+@pytest.mark.parametrize(
+    ("kind", "message"),
+    [
+        ("fifo", "project.json is not a regular file"),
+        ("directory", "project.json is not a regular file"),
+        ("oversized", "project.json is too large"),
+    ],
+)
+def test_project_file_that_is_not_a_small_regular_file_is_422(
+    workspace: Path, kind: str, message: str
+) -> None:
     # A FIFO would block the worker forever and a huge file would exhaust memory.
     path = workspace / "webapp-dev" / "project.json"
     path.parent.mkdir(parents=True)
@@ -139,9 +149,11 @@ def test_project_file_that_is_not_a_small_regular_file_is_422(workspace: Path, k
         os.mkfifo(path)
     elif kind == "directory":
         path.mkdir()
-    else:
-        path.write_text(" " * (MAX_BODY_BYTES + 1))
-    assert client.get("/api/projects/webapp-dev").status_code == 422
+    else:  # valid JSON, so only the size cap can refuse it
+        path.write_text(json.dumps(body()["project"]) + " " * MAX_BODY_BYTES)
+    response = client.get("/api/projects/webapp-dev")
+    assert response.status_code == 422
+    assert response.json()["detail"]["message"] == message
 
 
 def test_file_in_place_of_the_project_dir_is_422(workspace: Path) -> None:

@@ -35,7 +35,7 @@ New flow, built only on directory file descriptors:
 4. `get_project` opens `project.json` with `O_RDONLY | O_NOFOLLOW | O_NONBLOCK` relative to `dir_fd`, so a FIFO cannot block the open. A symlinked file gives the existing 422. `fstat` must show a regular file no larger than the 2 MB body cap (`MAX_BODY_BYTES`), otherwise 422, and the read is capped at that size. Tests cover a FIFO, a directory and an oversized file.
 5. Every fd is closed in a `finally`.
 
-The `NAME_PATTERN` check stays as the first line of defence. The response shapes and status codes do not change.
+The `NAME_PATTERN` check stays as the first line of defence. Existing responses do not change. A file in place of the project directory (was 500), a non-regular `project.json` (was 404 or 500) and an oversized one now return 422, as listed above.
 
 **Docs:** the "Accepted risk" bullet in `docs/specs/M3/spec.md` is changed to say M3.1 closed it.
 
