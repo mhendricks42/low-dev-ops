@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useReducer, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useReducer,
+  useState,
+  type ReactNode,
+} from 'react'
 import { api, ApiError } from '../api'
 import { emptyProject } from './catalog'
 import type { CatalogEntry } from './catalog-entry'
@@ -11,6 +19,10 @@ interface Store {
   catalog: CatalogEntry[]
   hcl: string
   saveStatus: string
+  saveError: string | null
+  // Short message for screen readers, e.g. "Added vnet1" (WCAG 4.1.3).
+  announcement: string
+  announce: (message: string) => void
 }
 
 const StoreContext = createContext<Store | null>(null)
@@ -32,9 +44,18 @@ function Loaded({
   catalog: CatalogEntry[]
   children: ReactNode
 }) {
-  const [project, dispatch] = useReducer(reducer, initial)
+  const [project, rawDispatch] = useReducer(reducer, initial)
   const [hcl, setHcl] = useState('')
   const [saveStatus, setSaveStatus] = useState('Loaded')
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [announcement, announce] = useState('')
+
+  // "Saving…" on every change, so each later "All changes saved" is a real change that a
+  // screen reader announces.
+  const dispatch = useCallback((action: Action) => {
+    setSaveStatus('Saving…')
+    rawDispatch(action)
+  }, [])
 
   // Every model change is saved and regenerates the HCL (PRD sync rules).
   useEffect(() => {
@@ -46,8 +67,16 @@ function Loaded({
         .catch(() => undefined)
       api
         .saveProject(project)
-        .then(() => !cancelled && setSaveStatus('All changes saved'))
-        .catch((e: unknown) => !cancelled && setSaveStatus(`Save failed: ${(e as Error).message}`))
+        .then(() => {
+          if (cancelled) return
+          setSaveStatus('All changes saved')
+          setSaveError(null)
+        })
+        .catch((e: unknown) => {
+          if (cancelled) return
+          setSaveStatus('Not saved')
+          setSaveError(`Your changes were not saved: ${(e as Error).message}`)
+        })
     }, DEBOUNCE_MS)
     return () => {
       cancelled = true
@@ -56,7 +85,9 @@ function Loaded({
   }, [project])
 
   return (
-    <StoreContext.Provider value={{ project, dispatch, catalog, hcl, saveStatus }}>
+    <StoreContext.Provider
+      value={{ project, dispatch, catalog, hcl, saveStatus, saveError, announcement, announce }}
+    >
       {children}
     </StoreContext.Provider>
   )

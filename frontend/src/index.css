@@ -19,6 +19,11 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+.app-status {
+  display: flex;
+  gap: var(--space-3);
+}
+
 .app-header h1 {
   font-size: var(--text-lg);
   margin: 0;
@@ -34,7 +39,7 @@ main {
 
 .wizard {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
   gap: var(--space-4);
   max-width: 72rem;
 }
@@ -58,7 +63,7 @@ pre {
   gap: var(--space-4);
 }
 
-@media (max-width: 60rem) {
+@media (max-width: 80rem) {
   .canvas-layout {
     grid-template-columns: 1fr;
   }
@@ -94,4 +99,24 @@ pre {
 
 .canvas-layout > section {
   overflow-x: auto;
+}
+
+/* React Flow on design tokens: visible focus (WCAG 2.4.7) and 3:1 edges (1.4.11). */
+.react-flow {
+  --xy-edge-stroke: var(--border);
+  --xy-edge-stroke-selected: var(--accent);
+  --xy-edge-stroke-width: 2;
+  --xy-node-border: 1px solid var(--border);
+}
+
+.react-flow__node:focus-visible,
+.react-flow__node.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.react-flow__edge:focus-visible .react-flow__edge-path,
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--accent);
+  stroke-width: 3;
 }

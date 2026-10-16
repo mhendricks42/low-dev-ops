@@ -38,18 +38,20 @@ export default function MonacoHcl({ value, onChange, onSave, error }: EditorProp
       value={value}
       onChange={(v) => onChange(v ?? '')}
       theme="lowdevops"
-      beforeMount={(m) =>
-        // Default line numbers fail 4.5:1 contrast on white; match the design tokens instead.
+      beforeMount={(m) => {
+        // Default line numbers fail 4.5:1 contrast on white; use the design tokens instead.
+        const token = (name: string) =>
+          getComputedStyle(document.documentElement).getPropertyValue(name).trim()
         m.editor.defineTheme('lowdevops', {
           base: 'vs',
           inherit: true,
           rules: [],
           colors: {
-            'editorLineNumber.foreground': '#4d4d4d',
-            'editorLineNumber.activeForeground': '#1a1a1a',
+            'editorLineNumber.foreground': token('--muted'),
+            'editorLineNumber.activeForeground': token('--text'),
           },
         })
-      }
+      }}
       onMount={(editor) => {
         editorRef.current = editor
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => saveRef.current())

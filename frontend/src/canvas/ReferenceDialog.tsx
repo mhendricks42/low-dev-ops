@@ -13,23 +13,28 @@ export function ReferenceDialog({
   title,
   choices,
   onClose,
+  returnFocus,
 }: {
   title: string
   choices: Choice[]
   onClose: () => void
+  returnFocus?: () => void
 }) {
-  const { dispatch } = useStore()
+  const { dispatch, announce } = useStore()
   const key = (c: Choice) => `${c.id}.${c.ref.input}=${c.ref.to}.${c.ref.output}`
   const [selected, setSelected] = useState(choices[0] ? key(choices[0]) : '')
 
   function add() {
     const choice = choices.find((c) => key(c) === selected)
-    if (choice) dispatch({ type: 'setRef', id: choice.id, ref: choice.ref })
+    if (choice) {
+      dispatch({ type: 'setRef', id: choice.id, ref: choice.ref })
+      announce(`Reference ${choice.ref.input} on ${choice.id} set to ${choice.ref.to}.`)
+    }
     onClose()
   }
 
   return (
-    <Dialog title={title} open onClose={onClose}>
+    <Dialog title={title} open onClose={onClose} returnFocus={returnFocus}>
       <form method="dialog" onSubmit={(e) => (e.preventDefault(), add())}>
         <Select
           label="Reference"

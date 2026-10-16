@@ -51,10 +51,11 @@ export function HclView({ Editor = MonacoHcl }: { Editor?: ComponentType<EditorP
         press Ctrl+M to type tab characters instead.
       </p>
       <div className="toolbar">
-        <Button variant="primary" onClick={() => void save()} disabled={draft === null}>
+        {/* aria-disabled, not disabled: the buttons keep focus after saving or discarding. */}
+        <Button variant="primary" onClick={() => void save()} aria-disabled={draft === null}>
           Save HCL
         </Button>
-        <Button onClick={discard} disabled={draft === null}>
+        <Button onClick={discard} aria-disabled={draft === null}>
           Discard edits
         </Button>
       </div>

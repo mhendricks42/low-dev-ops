@@ -46,3 +46,34 @@ test('add and remove a reference from the list view', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Remove parent_id from vnet1' }))
   expect(screen.getByLabelText('vnet refs')).toHaveTextContent('[]')
 })
+
+test('focus lands on stable elements after removals and after the dialog closes', async () => {
+  let p = project()
+  p = reducer(p, { type: 'addResource', resource: newResource(RG, p, 'rg1') })
+  p = reducer(p, { type: 'addResource', resource: newResource(VNET, p, 'vnet1') })
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/api/catalog') return Response.json({ entries: CATALOG })
+      if (url === '/api/hcl/generate') return Response.json({ hcl: '' })
+      if (init?.method === 'PUT') return Response.json({ issues: [] })
+      return Response.json({ project: p })
+    }),
+  )
+  render(
+    <ProjectProvider name="demo">
+      <ListView />
+    </ProjectProvider>,
+  )
+  const open = await screen.findByRole('button', { name: 'Add reference to vnet1' })
+  open.focus()
+  fireEvent.click(open)
+  fireEvent.click(screen.getByRole('button', { name: 'Add reference' }))
+  expect(open).toHaveFocus() // back to the opener
+
+  fireEvent.click(screen.getByRole('button', { name: 'Remove parent_id from vnet1' }))
+  expect(screen.getByRole('button', { name: 'Add reference to vnet1' })).toHaveFocus()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Remove vnet1' }))
+  expect(screen.getByRole('heading', { name: 'Resources and references' })).toHaveFocus()
+})

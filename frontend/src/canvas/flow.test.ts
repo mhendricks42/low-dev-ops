@@ -2,7 +2,7 @@ import { expect, test } from 'vitest'
 import { newResource } from '../model/catalog'
 import { reducer } from '../model/reducer'
 import { CATALOG, project, RG, VNET } from '../model/testData'
-import { connectionOptions, toFlow } from './flow'
+import { connectAction, connectionOptions, finishedMoves, toFlow } from './flow'
 
 function rgAndVnet() {
   let p = project()
@@ -53,4 +53,23 @@ test('a connection is allowed only where the catalog has a ref, in either direct
   expect(connectionOptions(p, CATALOG, 'rg1', 'vnet1')).toEqual(expected)
   expect(connectionOptions(p, CATALOG, 'vnet1', 'rg1')).toEqual(expected)
   expect(connectionOptions(p, CATALOG, 'rg1', 'rg1')).toEqual([])
+})
+
+test('connectAction sets a single match, asks for several, refuses none', () => {
+  const a = { id: 'vnet1', ref: { input: 'parent_id', to: 'rg1', output: 'resource_id' } }
+  const b = { id: 'vnet1', ref: { input: 'dns_id', to: 'rg1', output: 'resource_id' } }
+  expect(connectAction([a])).toEqual({ kind: 'set', choice: a })
+  expect(connectAction([a, b])).toEqual({ kind: 'choose', choices: [a, b] })
+  expect(connectAction([])).toEqual({ kind: 'none' })
+})
+
+test('finishedMoves keeps completed drags and keyboard moves, not intermediate drag steps', () => {
+  expect(
+    finishedMoves([
+      { type: 'position', id: 'rg1', position: { x: 1, y: 2 }, dragging: true },
+      { type: 'position', id: 'rg1', position: { x: 5, y: 6 }, dragging: false },
+      { type: 'position', id: 'custom:c1', position: { x: 0, y: 0 }, dragging: false },
+      { type: 'select', id: 'rg1', selected: true },
+    ]),
+  ).toEqual([{ id: 'rg1', x: 5, y: 6 }])
 })

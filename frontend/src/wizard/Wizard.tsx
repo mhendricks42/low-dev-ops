@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import {
   Button,
   Checkbox,
@@ -15,46 +15,76 @@ import { useStore } from '../model/store'
 const ID_PATTERN = /^[a-z][a-z0-9_]{0,62}$/
 
 function AddResource({ onAdded }: { onAdded: (id: string) => void }) {
-  const { project, catalog, dispatch } = useStore()
+  const { project, catalog, dispatch, announce } = useStore()
   const [module, setModule] = useState('')
   const [id, setId] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [typeError, setTypeError] = useState<string | null>(null)
+  const [idError, setIdError] = useState<string | null>(null)
+  const typeRef = useRef<HTMLSelectElement>(null)
+  const idRef = useRef<HTMLInputElement>(null)
   const entry = catalog.find((e) => e.module === module)
+  const byCategory = [...catalog].sort(
+    (a, b) => a.category.localeCompare(b.category) || a.title.localeCompare(b.title),
+  )
 
   function chooseType(next: string) {
     setModule(next)
     const e = catalog.find((c) => c.module === next)
     setId(e ? nextId(project, e.cafAbbreviation) : '')
-    setError(null)
+    setTypeError(null)
+    setIdError(null)
   }
 
-  function add() {
-    if (!entry) return setError('Choose a resource type first.')
-    if (!ID_PATTERN.test(id))
-      return setError('Use lowercase letters, digits and _; start with a letter.')
-    if ((project.resources ?? []).some((r) => r.id === id))
-      return setError(`"${id}" is already used.`)
+  function add(e: FormEvent) {
+    e.preventDefault()
+    setTypeError(null)
+    setIdError(null)
+    if (!entry) {
+      setTypeError('Resource type: choose a type first.')
+      typeRef.current?.focus()
+      return
+    }
+    const problem = !ID_PATTERN.test(id)
+      ? 'Resource id: use lowercase letters, digits and _, starting with a letter.'
+      : (project.resources ?? []).some((r) => r.id === id)
+        ? `Resource id: "${id}" is already used.`
+        : null
+    if (problem) {
+      setIdError(problem)
+      idRef.current?.focus()
+      return
+    }
     dispatch({ type: 'addResource', resource: newResource(entry, project, id) })
+    announce(`Added ${id} (${entry.title}).`)
     onAdded(id)
     setModule('')
     setId('')
-    setError(null)
   }
 
   return (
     <section aria-labelledby="add-heading">
       <h2 id="add-heading">Add a resource</h2>
-      <Select
-        label="Resource type"
-        value={module}
-        placeholder="Choose a type…"
-        options={catalog.map((e) => ({ value: e.module, label: `${e.title} (${e.category})` }))}
-        onChange={chooseType}
-      />
-      <TextField label="Resource id" value={id} error={error} onChange={setId} />
-      <Button variant="primary" onClick={add}>
-        Add resource
-      </Button>
+      <form onSubmit={add} noValidate>
+        <Select
+          label="Resource type"
+          value={module}
+          placeholder="Choose a type…"
+          error={typeError}
+          inputRef={typeRef}
+          options={byCategory.map((e) => ({ value: e.module, label: e.title, group: e.category }))}
+          onChange={chooseType}
+        />
+        <TextField
+          label="Resource id"
+          value={id}
+          error={idError}
+          inputRef={idRef}
+          onChange={setId}
+        />
+        <Button type="submit" variant="primary">
+          Add resource
+        </Button>
+      </form>
     </section>
   )
 }
@@ -170,7 +200,7 @@ function Inputs({
 }
 
 function ResourceForm({ resource }: { resource: Resource }) {
-  const { catalog, dispatch } = useStore()
+  const { catalog, dispatch, announce } = useStore()
   const entry = entryFor(catalog, resource)
   return (
     <form aria-labelledby={`form-${resource.id}`} onSubmit={(e) => e.preventDefault()}>
@@ -190,7 +220,12 @@ function ResourceForm({ resource }: { resource: Resource }) {
       )}
       <Button
         variant="danger"
-        onClick={() => dispatch({ type: 'removeResource', id: resource.id })}
+        onClick={() => {
+          dispatch({ type: 'removeResource', id: resource.id })
+          announce(`Removed ${resource.id}.`)
+          // The form unmounts with its button; keep focus in this section.
+          document.getElementById('edit-heading')?.focus()
+        }}
       >
         Remove {resource.id}
       </Button>
@@ -208,7 +243,9 @@ export function Wizard() {
     <div className="wizard">
       <AddResource onAdded={setSelected} />
       <section aria-labelledby="edit-heading">
-        <h2 id="edit-heading">Edit resources</h2>
+        <h2 id="edit-heading" tabIndex={-1}>
+          Edit resources
+        </h2>
         {resource ? (
           <>
             <Select
@@ -228,9 +265,11 @@ export function Wizard() {
           <h2 id="custom-heading">Custom HCL (view only)</h2>
           <p>Edit these blocks in the HCL view.</p>
           {(project.customHcl ?? []).map((c) => (
-            <pre key={c.id} aria-label={`Custom HCL ${c.id}`} tabIndex={0}>
-              {c.hcl}
-            </pre>
+            <figure key={c.id}>
+              <figcaption>Custom HCL {c.id}</figcaption>
+              {/* tabIndex so keyboard users can scroll long blocks (axe scrollable-region) */}
+              <pre tabIndex={0}>{c.hcl}</pre>
+            </figure>
           ))}
         </section>
       )}

@@ -1,4 +1,5 @@
-import { Status, Tabs } from './design-system/components'
+import { useEffect, useState } from 'react'
+import { Alert, Status, Tabs } from './design-system/components'
 import { ProjectProvider, useStore } from './model/store'
 import { Canvas } from './canvas/Canvas'
 import { HclView } from './editor/HclView'
@@ -11,14 +12,33 @@ export function projectName(search: string): string {
   return NAME.test(name) ? name : 'default'
 }
 
+function useApiHealth(): string {
+  const [health, setHealth] = useState('checking…')
+  useEffect(() => {
+    fetch('/api/health')
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(res.statusText))))
+      .then((body: { status: string }) => setHealth(body.status))
+      .catch(() => setHealth('unreachable'))
+  }, [])
+  return health
+}
+
 function Shell() {
-  const { project, saveStatus } = useStore()
+  const { project, saveStatus, saveError, announcement } = useStore()
+  const health = useApiHealth()
   return (
     <>
       <header className="app-header">
         <h1>LowDevOps: {project.meta.name}</h1>
-        <Status>{saveStatus}</Status>
+        <div className="app-status">
+          <Status>API: {health}</Status>
+          <Status>{saveStatus}</Status>
+        </div>
       </header>
+      <p role="status" className="ds-sr-only">
+        {announcement}
+      </p>
+      {saveError && <Alert>{saveError}</Alert>}
       <main>
         <Tabs
           label="Project views"
