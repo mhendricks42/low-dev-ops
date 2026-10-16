@@ -1,0 +1,140 @@
+/* Design tokens. Contrast on --bg (#fff): text 16.1:1, muted 7.0:1, accent 6.2:1, danger 6.5:1,
+   border 4.8:1 (WCAG 2.2 AA needs 4.5:1 for text, 3:1 for UI parts and focus indicators). */
+:root {
+  --bg: #ffffff;
+  --surface: #f4f5f7;
+  --text: #1a1a1a;
+  --muted: #4d4d4d;
+  --border: #707070;
+  --accent: #0b5cad;
+  --accent-text: #ffffff;
+  --danger: #b3261e;
+  --success: #1e6b2e;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --radius: 4px;
+  --font: system-ui, sans-serif;
+  --mono: ui-monospace, 'Cascadia Code', Menlo, monospace;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ds-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-block-end: var(--space-3);
+}
+.ds-field label {
+  font-weight: 600;
+}
+.ds-field input,
+.ds-field select,
+.ds-field textarea {
+  font: inherit;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-height: 2.25rem; /* >= 24px target size (WCAG 2.5.8) */
+  background: var(--bg);
+  color: var(--text);
+}
+.ds-field textarea {
+  font-family: var(--mono);
+  min-height: 5rem;
+}
+.ds-field [aria-invalid='true'] {
+  border-color: var(--danger);
+  border-width: 2px;
+}
+.ds-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block-end: var(--space-3);
+}
+.ds-check input {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.ds-hint {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.ds-error {
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+.ds-button {
+  font: inherit;
+  min-height: 2.25rem;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  background: var(--bg);
+  color: var(--accent);
+  cursor: pointer;
+}
+.ds-button[data-variant='primary'] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.ds-button[data-variant='danger'] {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.ds-tablist {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--border);
+}
+.ds-tab {
+  font: inherit;
+  padding: var(--space-2) var(--space-3);
+  min-height: 2.5rem;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+.ds-tab[aria-selected='true'] {
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.ds-dialog {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  min-width: min(30rem, 90vw);
+}
+.ds-dialog::backdrop {
+  background: rgb(0 0 0 / 40%);
+}
+.ds-alert {
+  border-left: 4px solid var(--danger);
+  background: #fdecea;
+  color: var(--text);
+  padding: var(--space-2) var(--space-3);
+}
+.ds-status {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+.ds-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
