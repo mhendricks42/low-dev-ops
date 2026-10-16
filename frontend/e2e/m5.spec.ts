@@ -9,7 +9,6 @@ test.use({ viewport: { width: 1280, height: 1600 } })
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
 const API = 'http://127.0.0.1:8000'
-const SUB = '00000000-0000-0000-0000-000000000000' // the fake az's subscription
 const FIXTURE = resolve('../backend/tests/fixtures/guardrails/clean/project.json')
 const tfState = () => process.env.LOWDEVOPS_FAKE_TF_STATE ?? ''
 
