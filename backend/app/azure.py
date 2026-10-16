@@ -20,6 +20,9 @@ CREDENTIAL_PREFIXES = (
     "ARM_CLIENT_", "ARM_OIDC_", "ARM_USE_MSI", "ARM_USE_OIDC", "ARM_MSI_", "ARM_ACCESS_KEY",
     "ARM_SAS_TOKEN", "ARM_USE_AKS_WORKLOAD_IDENTITY", "ARM_USE_CLI", "ACTIONS_ID_TOKEN_REQUEST_",
     "TF_VAR_",
+    # Which subscription and tenant to act on is never taken from the environment: az calls
+    # pass --subscription, and terraform gets the confirmed id explicitly (M5).
+    "ARM_SUBSCRIPTION_ID", "ARM_TENANT_ID", "AZURE_SUBSCRIPTION_ID", "AZURE_TENANT_ID",
 )  # fmt: skip
 _workdir: Path | None = None
 

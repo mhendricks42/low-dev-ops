@@ -1,5 +1,6 @@
 """app/proc.py: the one way LowDevOps starts a subprocess (scanners, az, terraform)."""
 
+import contextlib
 import os
 import sys
 import time
@@ -135,3 +136,52 @@ def test_env_must_be_given() -> None:
     # No implicit inheritance: every caller decides what reaches the child.
     with pytest.raises(TypeError):
         proc.run([PY, "-c", "pass"], cwd=Path("."), timeout=10)  # type: ignore[call-arg]
+
+
+def test_an_escaped_grandchild_cannot_hold_a_run_open(tmp_path: Path) -> None:
+    # A grandchild in its own session escapes killpg; if it keeps stdout open, reading would
+    # never end. The timeout must still end the run.
+    pid_file = tmp_path / "grandchild"
+    code = (
+        "import subprocess, time\n"
+        "g = subprocess.Popen(['sleep', '300'], start_new_session=True)\n"
+        f"open({str(pid_file)!r}, 'w').write(str(g.pid))\n"
+        "print('started', flush=True)\n"
+        "time.sleep(300)"
+    )
+    started = time.monotonic()
+    try:
+        with pytest.raises(proc.ProcTimeout):
+            proc.run(
+                [PY, "-c", code],
+                cwd=tmp_path,
+                timeout=1,
+                env=proc.inherited_env(),
+                on_line=lambda _: None,
+            )
+        assert time.monotonic() - started < 10
+    finally:
+        if pid_file.exists():
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(int(pid_file.read_text()), 9)
+
+
+def test_leftover_group_members_are_killed_after_a_normal_exit(tmp_path: Path) -> None:
+    pid_file = tmp_path / "worker"
+    code = (
+        "import subprocess\n"
+        "w = subprocess.Popen(['sleep', '300'], stdout=subprocess.DEVNULL)\n"
+        f"open({str(pid_file)!r}, 'w').write(str(w.pid))"
+    )
+    assert (
+        proc.run([PY, "-c", code], cwd=tmp_path, timeout=30, env=proc.inherited_env()).returncode
+        == 0
+    )
+    worker = int(pid_file.read_text())
+    for _ in range(50):
+        try:
+            os.kill(worker, 0)
+        except ProcessLookupError:
+            return
+        time.sleep(0.1)
+    pytest.fail(f"worker {worker} outlived its run")
