@@ -6,6 +6,7 @@ collides with a project directory.
 
 import os
 import tempfile
+import threading
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
@@ -31,6 +32,9 @@ class Settings(_Model):
     backends: dict[str, Backend] = {}  # by subscription id
 
 
+_LOCK = threading.Lock()  # load-change-save must not interleave (bootstraps run in parallel)
+
+
 def _path() -> Path:
     return _workspace().resolve() / "settings.json"
 
@@ -47,9 +51,24 @@ def save(settings: Settings) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     text = settings.model_dump_json(by_alias=True, indent=2) + "\n"
     with tempfile.NamedTemporaryFile("w", dir=path.parent, delete=False, suffix=".tmp") as f:
-        f.write(text)
+        try:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        except BaseException:
+            f.close()
+            os.unlink(f.name)
+            raise
     try:
         os.replace(f.name, path)
     except BaseException:
         os.unlink(f.name)
         raise
+
+
+def record_backend(subscription_id: str, backend: Backend) -> None:
+    with _LOCK:
+        current = load()
+        save(
+            current.model_copy(update={"backends": {**current.backends, subscription_id: backend}})
+        )

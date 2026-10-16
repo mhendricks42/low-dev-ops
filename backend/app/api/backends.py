@@ -24,7 +24,7 @@ class BootstrapRequest(BaseModel):
 
 @router.get("/{subscription_id}")
 def get_backend(subscription_id: SubscriptionId) -> dict[str, Any]:
-    backend = settings.load().backends.get(subscription_id)
+    backend = settings.load().backends.get(subscription_id.lower())
     if backend is None:
         raise HTTPException(
             404, detail={"message": "no state backend recorded for this subscription"}
@@ -34,8 +34,10 @@ def get_backend(subscription_id: SubscriptionId) -> dict[str, Any]:
 
 @router.post("/{subscription_id}/bootstrap", status_code=202)
 def start_bootstrap(subscription_id: SubscriptionId, body: BootstrapRequest) -> dict[str, str]:
+    # One subscription, one backend: ids are compared and stored lower-case everywhere.
+    subscription_id = subscription_id.lower()
     # The subscription-confirm step: the user typed or ticked the exact id they mean.
-    if body.confirm_subscription_id.lower() != subscription_id.lower():
+    if body.confirm_subscription_id.lower() != subscription_id:
         raise HTTPException(422, detail={"message": "confirm the subscription id to bootstrap"})
 
     def work(run: Run) -> int:
@@ -43,7 +45,7 @@ def start_bootstrap(subscription_id: SubscriptionId, body: BootstrapRequest) -> 
         return 0
 
     try:
-        run = REGISTRY.start(f"bootstrap:{subscription_id.lower()}", "bootstrap", work)
+        run = REGISTRY.start(f"bootstrap:{subscription_id}", "bootstrap", work)
     except RunBusy as e:
         raise HTTPException(409, detail={"message": str(e), "runId": e.run.id}) from e
     return {"runId": run.id}

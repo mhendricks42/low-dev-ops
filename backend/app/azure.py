@@ -13,18 +13,15 @@ from typing import Any
 from app import proc
 
 TIMEOUT_SECONDS = 300
-# Credentials the app must never use, even if they happen to be in its environment.
+# Credentials and settings the app must never use, even if they are in its environment: it acts
+# only as the person who ran `az login` (PRD). TF_VAR_* could smuggle values into a plan.
 CREDENTIAL_PREFIXES = (
-    "AZURE_CLIENT_",
-    "AZURE_FEDERATED_",
-    "AZURE_USERNAME",
-    "AZURE_PASSWORD",
-    "ARM_CLIENT_",
-    "ARM_OIDC_",
-    "ARM_USE_MSI",
-    "ARM_USE_OIDC",
-    "ARM_MSI_",
-)
+    "AZURE_CLIENT_", "AZURE_FEDERATED_", "AZURE_USERNAME", "AZURE_PASSWORD", "AZURE_STORAGE_",
+    "ARM_CLIENT_", "ARM_OIDC_", "ARM_USE_MSI", "ARM_USE_OIDC", "ARM_MSI_", "ARM_ACCESS_KEY",
+    "ARM_SAS_TOKEN", "ARM_USE_AKS_WORKLOAD_IDENTITY", "ARM_USE_CLI", "ACTIONS_ID_TOKEN_REQUEST_",
+    "TF_VAR_",
+)  # fmt: skip
+_workdir: Path | None = None
 
 
 class AzError(Exception):
@@ -47,8 +44,19 @@ class Account:
     tenant_id: str
 
 
-def az_env() -> dict[str, str]:
-    return proc.inherited_env(drop_prefixes=CREDENTIAL_PREFIXES)
+def credential_free_env(extra: dict[str, str] | None = None) -> dict[str, str]:
+    """The environment for az and terraform: no stored credentials, Azure CLI auth only."""
+    return proc.inherited_env(
+        drop_prefixes=CREDENTIAL_PREFIXES, extra={"ARM_USE_CLI": "true", **(extra or {})}
+    )
+
+
+def private_workdir() -> Path:
+    # A 0700 directory of our own: az is Python, and Python puts its cwd on the import path.
+    global _workdir  # one directory per process
+    if _workdir is None or not _workdir.is_dir():
+        _workdir = Path(tempfile.mkdtemp(prefix="lowdevops-az-"))
+    return _workdir
 
 
 def az(args: list[str]) -> Any:
@@ -56,9 +64,9 @@ def az(args: list[str]) -> Any:
     try:
         done = proc.run(
             ["az", *args, "--output", "json", "--only-show-errors"],
-            cwd=Path(tempfile.gettempdir()),
+            cwd=private_workdir(),
             timeout=TIMEOUT_SECONDS,
-            env=az_env(),
+            env=credential_free_env(),
         )
     except proc.ProcError as e:
         raise AzError(str(e)) from e

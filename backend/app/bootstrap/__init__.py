@@ -18,6 +18,10 @@ RETRY_DELAY_SECONDS = 10
 RETRY_ATTEMPTS = 12  # about 2 minutes for a new role assignment to take effect
 
 
+class BootstrapError(Exception):
+    pass
+
+
 def storage_account_name(subscription_id: str) -> str:
     # CAF `st` + a stable suffix: storage names are global, 3-24 lowercase letters and digits.
     return "stlowdevops" + hashlib.sha256(subscription_id.encode()).hexdigest()[:10]
@@ -55,22 +59,38 @@ def ensure_backend(
             ]
         )
 
+    hardening = [
+        "--min-tls-version", "TLS1_2", "--https-only", "true",
+        "--allow-blob-public-access", "false", "--allow-shared-key-access", "false",
+    ]  # fmt: skip
     try:
-        account_id = str(
-            azure.az(["storage", "account", "show", "--name", account, *rg, *sub])["id"]
-        )
+        shown = azure.az(["storage", "account", "show", "--name", account, *rg, *sub])
         say(f"Storage account {account} exists.")
+        # Someone may have loosened it since: state must stay Entra-only and private.
+        if (
+            shown.get("allowSharedKeyAccess") is not False
+            or shown.get("allowBlobPublicAccess") is not False
+            or shown.get("minimumTlsVersion") != "TLS1_2"
+            or shown.get("enableHttpsTrafficOnly") is not True
+        ):
+            say(f"Storage account {account} is not hardened any more; re-applying the settings…")
+            azure.az(["storage", "account", "update", "--name", account, *rg, *hardening, *sub])
     except azure.NotFound:
         say(f"Creating storage account {account} (TLS 1.2, no public blobs, no shared keys)…")
-        azure.az([
-            "storage", "account", "create", "--name", account, *rg, "--location", location,
-            "--kind", "StorageV2", "--sku", "Standard_ZRS", "--min-tls-version", "TLS1_2",
-            "--https-only", "true", "--allow-blob-public-access", "false",
-            "--allow-shared-key-access", "false", "--tags", TAGS, *sub,
-        ])  # fmt: skip
-        account_id = str(
-            azure.az(["storage", "account", "show", "--name", account, *rg, *sub])["id"]
-        )
+        try:
+            azure.az([
+                "storage", "account", "create", "--name", account, *rg, "--location", location,
+                "--kind", "StorageV2", "--sku", "Standard_ZRS", *hardening, "--tags", TAGS, *sub,
+            ])  # fmt: skip
+        except azure.AzError as e:
+            if "AlreadyTaken" in str(e) or "already taken" in str(e):
+                raise BootstrapError(
+                    f"The storage account name {account} is already taken in another subscription "
+                    "(storage names are global). Ask whoever owns it, or report this as a bug."
+                ) from e
+            raise
+        shown = azure.az(["storage", "account", "show", "--name", account, *rg, *sub])
+    account_id = str(shown["id"])
 
     props = azure.az(
         [
@@ -137,9 +157,6 @@ def ensure_backend(
         container=CONTAINER,
         location=location,
     )
-    current = settings.load()
-    settings.save(
-        current.model_copy(update={"backends": {**current.backends, subscription_id: backend}})
-    )
+    settings.record_backend(subscription_id, backend)
     say(f"State backend ready: {account}/{CONTAINER}, recorded in settings.json.")
     return backend
