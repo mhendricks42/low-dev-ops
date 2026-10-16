@@ -97,13 +97,15 @@ test('a change is pending from the moment it is made until its own save succeeds
 // #12: the live save status changes only when the outcome does, so typing pauses are silent.
 let seen: string[] = []
 function SaveText() {
-  const { saveStatus, saving, dispatch, project } = useStore()
+  const { saveStatus, saving, pending, dispatch, project } = useStore()
   useEffect(() => {
     seen.push(saveStatus) // every committed value of the live text
   }, [saveStatus])
   return (
     <>
-      <p data-saving={String(saving)}>{saveStatus}</p>
+      <p data-saving={String(saving)} data-pending={String(pending)}>
+        {saveStatus}
+      </p>
       <button
         onClick={() =>
           dispatch({
@@ -136,19 +138,25 @@ test('edits between saves never put "Saving…" in the live status text', async 
   let release: (() => void) | undefined
   const ok = () => Response.json({ issues: [] })
   const held = () => new Promise<Response>((r) => (release = () => r(ok())))
-  stubPuts([async () => ok(), held])
+  stubPuts([async () => ok(), async () => ok(), held])
   render(
     <ProjectProvider name="demo">
       <SaveText />
     </ProjectProvider>,
   )
   const status = await screen.findByText('All changes saved')
-  fireEvent.click(screen.getByRole('button', { name: 'Change' }))
+  await waitFor(() => expect(status).toHaveAttribute('data-pending', 'false'))
+  fireEvent.click(screen.getByRole('button', { name: 'Change' })) // first edit: saved at once
+  await waitFor(() => expect(status).toHaveAttribute('data-pending', 'false'))
+  fireEvent.click(screen.getByRole('button', { name: 'Change' })) // second edit: save held
+  expect(status).toHaveAttribute('data-pending', 'true') // aria-busy from the edit on
   await waitFor(() => expect(release).toBeDefined())
   expect(status).toHaveAttribute('data-saving', 'true') // shown visually, not announced
+  expect(status).toHaveAttribute('data-pending', 'true')
   expect(status).toHaveTextContent('All changes saved')
   release?.()
-  await waitFor(() => expect(status).toHaveAttribute('data-saving', 'false'))
+  await waitFor(() => expect(status).toHaveAttribute('data-pending', 'false'))
+  expect(status).toHaveAttribute('data-saving', 'false')
   expect(seen).toEqual(['Loaded', 'All changes saved'])
 })
 

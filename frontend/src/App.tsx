@@ -33,12 +33,8 @@ function Shell() {
         <div className="app-status">
           <Status>API: {health}</Status>
           <Status busy={pending}>{saveStatus}</Status>
-          {/* Visual only: the live status above announces outcomes, not every save (#12). */}
-          {saving && (
-            <span className="app-saving" aria-hidden="true">
-              Saving…
-            </span>
-          )}
+          {/* Outside the live region, so never announced; the status announces outcomes (#12). */}
+          {saving && <span className="app-saving">Saving…</span>}
         </div>
       </header>
       <p role="status" className="ds-sr-only">
