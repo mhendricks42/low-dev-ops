@@ -108,3 +108,14 @@ def test_failed_replace_leaves_no_temp_file(
     with pytest.raises(OSError):
         client.put("/api/projects/webapp-dev", json=body())
     assert list((workspace / "webapp-dev").glob("*.tmp")) == []
+
+
+# Non-ASCII digits (e.g. "\u00b9") cannot be sent over HTTP/1.1; isascii() guards them anyway.
+@pytest.mark.parametrize("length", ["-1", "+5", "abc"])
+def test_malformed_content_length_is_413(length: str) -> None:
+    response = client.post(
+        "/api/hcl/generate",
+        content=b"{}",
+        headers={"content-type": "application/json", "content-length": length},
+    )
+    assert response.status_code == 413

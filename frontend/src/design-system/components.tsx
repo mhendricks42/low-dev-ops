@@ -333,7 +333,8 @@ export function Dialog({
     if (!open) return
     const active = document.activeElement
     // Ignore focus already inside the dialog (React StrictMode re-runs this effect).
-    if (active instanceof HTMLElement && !ref.current?.contains(active)) opener.current = active
+    if (active instanceof HTMLElement && active !== document.body && !ref.current?.contains(active))
+      opener.current = active
     return () => {
       const target = opener.current
       if (target?.isConnected && !target.matches(':disabled')) target.focus()

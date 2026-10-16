@@ -42,6 +42,14 @@ All routes live under `/api` and the server binds to `127.0.0.1` only. Request b
 - Each file is written atomically: write a temp file in the same directory, then `os.replace`.
 - No subprocesses, and no deletes.
 
+**Request guards** (added after the security review):
+
+- `TrustedHostMiddleware` accepts only the hosts `127.0.0.1` and `localhost`. Anything else gets 400, which stops DNS rebinding.
+- POST, PUT, PATCH and DELETE requests carrying an `Origin` header must come from `http://127.0.0.1:5173` or `http://localhost:5173`, or they get 403. Clients that send no `Origin` (curl, tests) are allowed.
+- Request bodies are capped at 2 MB (413), whether or not they declare a `Content-Length`.
+- A symlinked project directory or `project.json` is refused (422), and an invalid stored `project.json` returns 422, not 500.
+- **Accepted risk:** a process running as the same user could swap the project directory for a symlink between the check and the write. The threat model already trusts same-user local processes (single user, one machine), so the directory-fd rewrite needed to close this race is not worth its code in M3.
+
 ## Frontend (`frontend/src/`)
 
 **Types.** `npm run types` generates `src/model/project.ts` and `src/model/catalog.ts` with `json-schema-to-typescript`, from `backend/schema/project.schema.json` and `catalog/catalog.schema.json`. The files are committed, and `npm run lint` fails if they drift. No model types are hand-written (frontend/CLAUDE.md).

@@ -109,8 +109,9 @@ pre {
   --xy-node-border: 1px solid var(--border);
 }
 
-.react-flow__node:focus-visible,
-.react-flow__node.selected {
+/* Beats React Flow's own `.react-flow__node.selectable:focus-visible { outline: none }`. */
+.react-flow .react-flow__node.selectable:focus-visible,
+.react-flow .react-flow__node.selected {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

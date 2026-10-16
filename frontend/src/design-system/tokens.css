@@ -92,6 +92,15 @@
   border-color: var(--danger);
   color: var(--danger);
 }
+.ds-button:disabled,
+.ds-button[aria-disabled='true'] {
+  /* Muted plus a dashed border, so the state is not shown by colour alone. */
+  color: var(--muted);
+  border-color: var(--border);
+  border-style: dashed;
+  background: var(--surface);
+  cursor: not-allowed;
+}
 .ds-tablist {
   display: flex;
   gap: var(--space-1);

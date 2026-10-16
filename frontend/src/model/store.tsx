@@ -1,12 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useReducer,
-  useState,
-  type ReactNode,
-} from 'react'
+import { createContext, useContext, useEffect, useReducer, useState, type ReactNode } from 'react'
 import { api, ApiError } from '../api'
 import { emptyProject } from './catalog'
 import type { CatalogEntry } from './catalog-entry'
@@ -44,23 +36,19 @@ function Loaded({
   catalog: CatalogEntry[]
   children: ReactNode
 }) {
-  const [project, rawDispatch] = useReducer(reducer, initial)
+  const [project, dispatch] = useReducer(reducer, initial)
   const [hcl, setHcl] = useState('')
   const [saveStatus, setSaveStatus] = useState('Loaded')
   const [saveError, setSaveError] = useState<string | null>(null)
   const [announcement, announce] = useState('')
 
-  // "Saving…" on every change, so each later "All changes saved" is a real change that a
-  // screen reader announces.
-  const dispatch = useCallback((action: Action) => {
-    setSaveStatus('Saving…')
-    rawDispatch(action)
-  }, [])
-
   // Every model change is saved and regenerates the HCL (PRD sync rules).
   useEffect(() => {
     let cancelled = false
     const timer = setTimeout(() => {
+      // Set when a save really starts (not per keystroke), so each later "All changes saved"
+      // is a real change that a screen reader announces, without chattering while typing.
+      setSaveStatus('Saving…')
       api
         .generate(project)
         .then((text) => !cancelled && setHcl(text))
