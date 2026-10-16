@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from app.api import catalog, guardrails, hcl, projects, runs
+from app.api import azure, catalog, guardrails, hcl, projects, runs
 from app.api.guard import LocalOnlyMiddleware
 
 app = FastAPI(title="LowDevOps")
+app.include_router(azure.router)
 app.include_router(catalog.router)
 app.include_router(guardrails.router)
 app.include_router(hcl.router)
