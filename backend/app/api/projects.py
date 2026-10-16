@@ -1,8 +1,11 @@
 """Load and save projects as <workspace>/<name>/project.json, plus the generated main.tf."""
 
+import errno
 import os
 import re
-import tempfile
+import secrets
+from collections.abc import Iterator
+from contextlib import contextmanager, suppress
 from dataclasses import asdict
 from pathlib import Path
 from typing import Annotated, Any
@@ -30,34 +33,61 @@ def _workspace() -> Path:
     return Path(os.environ.get("LOWDEVOPS_WORKSPACE", "~/lowdevops")).expanduser()
 
 
-def _project_dir(name: str) -> Path:
-    # The pattern already rules out "/" and "..". Re-check after resolve() so a symlink
-    # inside the workspace cannot point a write somewhere else.
+# All project file access goes through directory fds opened with O_NOFOLLOW, so a path is
+# never resolved again after the check: swapping a directory for a symlink cannot redirect a
+# write (M3.1, closes the race M3 accepted). POSIX only; the app runs in the Linux container.
+if not {os.open, os.mkdir, os.rename, os.unlink} <= os.supports_dir_fd:  # replace uses renameat too
+    raise RuntimeError("this platform lacks dir_fd support (POSIX required)")
+_NOFOLLOW_DIR = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+
+
+@contextmanager
+def _open_project_dir(name: str, *, create: bool) -> Iterator[int]:
     if not re.fullmatch(NAME_PATTERN, name):
         raise HTTPException(422, detail={"message": "invalid project name"})
-    root = _workspace().resolve()
-    if (root / name).is_symlink():
-        raise HTTPException(422, detail={"message": "project directory is a symlink"})
-    target = (root / name).resolve()
-    if target.parent != root:
-        raise HTTPException(422, detail={"message": "project path leaves the workspace"})
-    return target
-
-
-def _write_atomic(path: Path, text: str) -> None:
-    with tempfile.NamedTemporaryFile("w", dir=path.parent, delete=False, suffix=".tmp") as f:
+    root = _workspace().resolve()  # the workspace root is the user's own setting
+    if create:
+        root.mkdir(parents=True, exist_ok=True)
+    elif not root.is_dir():
+        raise HTTPException(404, detail={"message": f"no project '{name}'"})
+    root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        if create:
+            with suppress(FileExistsError):
+                os.mkdir(name, 0o755, dir_fd=root_fd)
         try:
+            dir_fd = os.open(name, _NOFOLLOW_DIR, dir_fd=root_fd)
+        except FileNotFoundError as e:
+            raise HTTPException(404, detail={"message": f"no project '{name}'"}) from e
+        except OSError as e:
+            if e.errno in (errno.ELOOP, errno.ENOTDIR):
+                raise HTTPException(
+                    422, detail={"message": "project directory is a symlink"}
+                ) from e
+            raise
+    finally:
+        os.close(root_fd)
+    try:
+        yield dir_fd
+    finally:
+        os.close(dir_fd)
+
+
+def _write_atomic(dir_fd: int, filename: str, text: str) -> None:
+    tmp = f".{filename}.{secrets.token_hex(8)}.tmp"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=dir_fd)
+    try:
+        with os.fdopen(fd, "w") as f:
             f.write(text)
             f.flush()
             os.fsync(f.fileno())
-        except BaseException:
-            os.unlink(f.name)
-            raise
-    try:
-        os.replace(f.name, path)  # replaces a symlink at `path` rather than writing through it
+        # Replaces a symlink at `filename` rather than writing through it.
+        os.replace(tmp, filename, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
     except BaseException:
-        os.unlink(f.name)
+        with suppress(FileNotFoundError):
+            os.unlink(tmp, dir_fd=dir_fd)
         raise
+    os.fsync(dir_fd)
 
 
 @router.get("")
@@ -75,13 +105,19 @@ def list_projects() -> dict[str, list[str]]:
 
 @router.get("/{name}")
 def get_project(name: Name) -> dict[str, Any]:
-    path = _project_dir(name) / "project.json"
-    if path.is_symlink():
-        raise HTTPException(422, detail={"message": "project.json is a symlink"})
-    if not path.is_file():
-        raise HTTPException(404, detail={"message": f"no project '{name}'"})
+    with _open_project_dir(name, create=False) as dir_fd:
+        try:
+            fd = os.open("project.json", os.O_RDONLY | os.O_NOFOLLOW, dir_fd=dir_fd)
+        except FileNotFoundError as e:
+            raise HTTPException(404, detail={"message": f"no project '{name}'"}) from e
+        except OSError as e:
+            if e.errno == errno.ELOOP:
+                raise HTTPException(422, detail={"message": "project.json is a symlink"}) from e
+            raise
+        with os.fdopen(fd) as f:
+            text = f.read()
     try:
-        project = Project.model_validate_json(path.read_text())
+        project = Project.model_validate_json(text)
     except ValidationError as e:
         raise HTTPException(422, detail={"message": f"project.json is invalid: {e}"}) from e
     return {"project": project.model_dump(mode="json", by_alias=True)}
@@ -95,8 +131,7 @@ def save_project(name: Name, body: SaveRequest) -> dict[str, Any]:
     # Render both files before writing either, so a failure never leaves them out of step.
     hcl = generate(project)
     text = project.model_dump_json(by_alias=True, indent=2) + "\n"
-    directory = _project_dir(name)
-    directory.mkdir(parents=True, exist_ok=True)
-    _write_atomic(directory / "project.json", text)
-    _write_atomic(directory / "main.tf", hcl)
+    with _open_project_dir(name, create=True) as dir_fd:
+        _write_atomic(dir_fd, "project.json", text)
+        _write_atomic(dir_fd, "main.tf", hcl)
     return {"issues": [asdict(i) for i in check_project(project, CATALOG)]}

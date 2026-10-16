@@ -48,7 +48,7 @@ All routes live under `/api` and the server binds to `127.0.0.1` only. Request b
 - POST, PUT, PATCH and DELETE requests carrying an `Origin` header must come from `http://127.0.0.1:5173` or `http://localhost:5173`, or they get 403. Clients that send no `Origin` (curl, tests) are allowed.
 - Request bodies are capped at 2 MB (413), whether or not they declare a `Content-Length`.
 - A symlinked project directory or `project.json` is refused (422), and an invalid stored `project.json` returns 422, not 500.
-- **Accepted risk:** a process running as the same user could swap the project directory for a symlink between the check and the write. The threat model already trusts same-user local processes (single user, one machine), so the directory-fd rewrite needed to close this race is not worth its code in M3.
+- **Closed in [M3.1](../M3.1/spec.md):** M3 accepted a same-user race in which the project directory could be swapped for a symlink between the check and the write. M3.1 moved all file access to directory fds opened with `O_NOFOLLOW`.
 
 ## Frontend (`frontend/src/`)
 

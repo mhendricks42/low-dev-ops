@@ -101,13 +101,32 @@ def test_failed_generate_writes_nothing(workspace: Path, monkeypatch: pytest.Mon
 def test_failed_replace_leaves_no_temp_file(
     workspace: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def broken_replace(src: str, dst: object) -> None:
+    def broken_replace(*args: object, **kwargs: object) -> None:
         raise OSError("disk full")
 
     monkeypatch.setattr(os, "replace", broken_replace)
     with pytest.raises(OSError):
         client.put("/api/projects/webapp-dev", json=body())
     assert list((workspace / "webapp-dev").glob("*.tmp")) == []
+
+
+def test_swap_to_symlink_after_open_stays_in_workspace(workspace: Path, tmp_path: Path) -> None:
+    # The race from M3's accepted risk: the directory is checked, then swapped for a symlink
+    # before the write. Writes go through the fd opened at check time, so they cannot follow it.
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    with projects_api._open_project_dir("webapp-dev", create=True) as dir_fd:
+        (workspace / "webapp-dev").rename(workspace / "moved")
+        (workspace / "webapp-dev").symlink_to(outside)
+        projects_api._write_atomic(dir_fd, "project.json", "{}\n")
+    assert list(outside.iterdir()) == []
+    assert (workspace / "moved" / "project.json").read_text() == "{}\n"
+
+
+def test_symlinked_project_dir_is_not_read(workspace: Path) -> None:
+    (workspace / "other").mkdir(parents=True)
+    (workspace / "webapp-dev").symlink_to(workspace / "other")
+    assert client.get("/api/projects/webapp-dev").status_code == 422
 
 
 # Non-ASCII digits (e.g. "\u00b9") cannot be sent over HTTP/1.1; isascii() guards them anyway.
