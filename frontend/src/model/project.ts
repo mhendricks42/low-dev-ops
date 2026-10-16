@@ -10,6 +10,7 @@ export type Env = string
 export type Pattern = string
 export type Region = string
 export type Workload = string
+export type Requiredtags = string[]
 export type Catalogref = string
 export type Id1 = string
 /**
@@ -40,6 +41,7 @@ export interface Project {
   customHcl?: Customhcl
   meta: Meta
   naming: Naming
+  requiredTags?: Requiredtags
   resources?: Resources
   schemaVersion: Schemaversion
   subscription: Subscription

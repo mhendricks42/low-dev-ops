@@ -17,6 +17,7 @@ EXPECTED_ERRORS = {
     "duplicate-output": "duplicate output 'name'",
     "example-unknown-input": "example sets unlisted input 'colour'",
     "file-name-mismatch": "does not match module 'avm-res-network-virtualnetwork'",
+    "name-without-rules": "an input with `fill: name` needs `nameRules`",
     "hidden-without-default": "hidden input 'enable_telemetry' needs a default",
     "non-finite-default": "must be a finite number",
     "not-a-mapping": "must be a YAML mapping",

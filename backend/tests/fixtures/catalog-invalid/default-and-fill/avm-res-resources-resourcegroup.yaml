@@ -4,6 +4,7 @@ version: 0.4.0
 title: Resource group
 category: foundation
 cafAbbreviation: rg
+nameRules: { min: 1, max: 64, chars: "a-zA-Z0-9._-" }
 inputs:
   name: { tier: basic, fill: name, default: rg-x }
   location: { tier: basic, fill: location }

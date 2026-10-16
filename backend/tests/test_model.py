@@ -58,3 +58,9 @@ def test_refs_are_sorted_by_input() -> None:
     ]
     refs = Project.model_validate(data).resources[1].refs
     assert [r.input for r in refs] == ["a_id", "z_id"]
+
+
+def test_required_tags_default_to_the_caf_minimum() -> None:
+    project = load_project("rg")
+    assert project.required_tags == ["env", "owner"]
+    assert "requiredTags" in project.model_dump(by_alias=True)

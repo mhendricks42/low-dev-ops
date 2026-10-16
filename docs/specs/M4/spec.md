@@ -56,10 +56,11 @@ class Finding:
 
 ## CAF naming (`backend/app/guardrails/naming.py`, mirrored in `frontend/src/model/naming.ts`)
 
-**Name rules in the catalog.** Each catalog entry gains `nameRules: { min, max, chars, lowercase, hyphens }`:
+**Name rules in the catalog.** Each catalog entry gains `nameRules: { min, max, chars, lowercase }`:
 
 - `chars` is a regex character class, for example `a-z0-9-`.
-- `hyphens: false` means separators are removed from the name (storage accounts).
+- A type whose `chars` has no `-` (storage accounts) loses its separators, because every character outside `chars` is dropped.
+- An entry with a `fill: name` input must declare `nameRules`; the loader rejects it otherwise.
 - `catalog.schema.json` is regenerated and the M2 drift test is updated.
 
 The values come from Microsoft's "Naming rules and restrictions for Azure resources" page. They are pinned in the YAML, and `make catalog` does not refetch them.
@@ -67,7 +68,7 @@ The values come from Microsoft's "Naming rules and restrictions for Azure resour
 **`caf_name(entry, project, kind=None)`:**
 
 1. Fill the project pattern (`{type}`, `{workload}`, `{env}`, `{region}`). `{type}` is the CAF abbreviation, and `func` replaces `app` when `kind == "functionapp"`, as the M2 spec deferred.
-2. Lowercase the name if the type requires it, then drop every character not in `chars`. When `hyphens` is false, separators are dropped too.
+2. Lowercase the name if the type requires it, then drop every character not in `chars`.
 3. If the name is longer than `max`, trim it, taking characters from `{workload}` first, then strip any leading or trailing separator.
 4. If the result is still shorter than `min`, it is an error. The UI shows it as the high finding `LDO_NAME_LENGTH`.
 

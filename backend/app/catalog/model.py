@@ -45,6 +45,16 @@ class AllowedRef(_Model):
     output: OutputName
 
 
+class NameRules(_Model):
+    # Azure limits for the resource type's name, from "Naming rules and restrictions for Azure
+    # resources" (learn.microsoft.com/azure/azure-resource-manager/management/resource-name-rules).
+    min: int = Field(ge=1)
+    max: int = Field(ge=1)
+    # Body of a regex character class, e.g. "a-z0-9-". Other characters are dropped.
+    chars: str = Field(pattern=r"^[A-Za-z0-9_.()\\-]+$")
+    lowercase: bool = False
+
+
 class CatalogEntry(_Model):
     schema_version: Literal[1]
     module: str = Field(pattern=MODULE_PATTERN)
@@ -52,6 +62,7 @@ class CatalogEntry(_Model):
     title: str
     category: Literal["foundation", "compute"]
     caf_abbreviation: str = Field(pattern=r"^[a-z]{2,8}$")
+    name_rules: NameRules | None = None  # required when an input has `fill: name`
     # Only for raw azurerm/azapi entries: why AVM can't be used (ADR-0003). None in M2.
     raw_reason: str | None = None
     inputs: dict[InputName, InputSpec]
@@ -86,6 +97,10 @@ class CatalogEntry(_Model):
                 raise ValueError(f"basic input '{name}' needs a default, a fill or an allowed ref")
             if spec.tier == "hidden" and not has_default:
                 raise ValueError(f"hidden input '{name}' needs a default")
+        if any(spec.fill == "name" for spec in self.inputs.values()) and self.name_rules is None:
+            raise ValueError("an input with `fill: name` needs `nameRules`")
+        if self.name_rules is not None and self.name_rules.min > self.name_rules.max:
+            raise ValueError("nameRules.min is larger than nameRules.max")
         for spec in self.inputs.values():
             _finite(spec.default)
         _finite(self.example)

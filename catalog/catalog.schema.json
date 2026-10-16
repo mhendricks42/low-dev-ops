@@ -79,7 +79,39 @@
       "title": "InputSpec",
       "type": "object"
     },
-    "JsonValue": {}
+    "JsonValue": {},
+    "NameRules": {
+      "additionalProperties": false,
+      "properties": {
+        "chars": {
+          "pattern": "^[A-Za-z0-9_.()\\\\-]+$",
+          "title": "Chars",
+          "type": "string"
+        },
+        "lowercase": {
+          "default": false,
+          "title": "Lowercase",
+          "type": "boolean"
+        },
+        "max": {
+          "minimum": 1,
+          "title": "Max",
+          "type": "integer"
+        },
+        "min": {
+          "minimum": 1,
+          "title": "Min",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "min",
+        "max",
+        "chars"
+      ],
+      "title": "NameRules",
+      "type": "object"
+    }
   },
   "additionalProperties": false,
   "properties": {
@@ -119,6 +151,17 @@
       "pattern": "^avm-[a-z0-9-]+$",
       "title": "Module",
       "type": "string"
+    },
+    "nameRules": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NameRules"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "outputs": {
       "items": {

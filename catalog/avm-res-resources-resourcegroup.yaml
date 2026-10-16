@@ -5,6 +5,8 @@ version: 0.4.0
 title: Resource group
 category: foundation
 cafAbbreviation: rg
+# Azure name limits (learn.microsoft.com resource-name-rules).
+nameRules: { min: 1, max: 90, chars: "a-zA-Z0-9._()-" }
 inputs:
   name: { tier: basic, fill: name, description: "Resource group name." }
   location: { tier: basic, fill: location, description: "Azure region." }
