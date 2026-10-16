@@ -36,9 +36,10 @@ fmt: ## Auto-fix formatting and lint
 	$(BE) uv run ruff format . && uv run ruff check --fix .
 	$(FE) npm run format
 
-schema: ## Regenerate project.json and catalog JSON Schemas from the models
+schema: ## Regenerate JSON Schemas from the models, and the TypeScript types from them
 	$(BE) mkdir -p schema && uv run python -m app.schema > schema/project.schema.json
 	$(BE) uv run python -m app.schema catalog > ../catalog/catalog.schema.json
+	$(FE) npm run types
 
 catalog: ## check-catalog: pins, module interfaces and terraform validate (needs network)
 	scripts/check-catalog
