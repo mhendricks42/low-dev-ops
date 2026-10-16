@@ -2,6 +2,7 @@
 
 import json
 import tempfile
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -15,6 +16,7 @@ from app.guardrails.tags import check_tags
 from app.model import Project, Waiver
 
 IGNORED_REASON = "high findings cannot be waived"
+_SCANNING = threading.Lock()
 
 
 @dataclass
@@ -25,10 +27,18 @@ class Report:
     unused_waivers: list[Waiver] = field(default_factory=list)
     scanners: list[str] = field(default_factory=list)  # which checks ran
 
+    # True once Checkov and Trivy have read a plan. Apply needs a scanned plan: naming, tags and
+    # policies on the model alone cannot see what Terraform will actually create.
+    plan_scanned: bool = False
+
+    @property
+    def blocked(self) -> bool:
+        # Waivers only ever cover medium/low, so anything still blocking is here.
+        return not all(f.waivable for f in self.findings)
+
     @property
     def apply_allowed(self) -> bool:
-        # Waivers only ever cover medium/low, so anything still blocking is here.
-        return all(f.waivable for f in self.findings)
+        return self.plan_scanned and not self.blocked
 
 
 def _distinct(findings: list[Finding]) -> list[Finding]:
@@ -80,14 +90,22 @@ def check(project: Project, catalog: Catalog, plan: dict[str, Any] | None = None
     AVM module calls are opaque until `terraform init`, so the scanners look at the plan (M5
     passes its real `terraform show -json`).
     """
-    found = check_names(project, catalog) + check_tags(project)
-    found += _scan("conftest", lambda d: scanners.conftest(project, d), {})
+    found = check_names(project, catalog) + check_tags(project, catalog)
+    plan_scanned = False
     ran = ["naming", "tags", "conftest"]
-    if plan is not None:
-        files = {"plan.json": json.dumps(plan)}
-        found += _scan("checkov", lambda d: scanners.checkov(project, d), files)
-        found += _scan("trivy", lambda d: scanners.trivy(project, plan, d), files)
-        ran += ["checkov", "trivy"]
+    with _SCANNING:  # one scan at a time: each can take seconds and spawn workers
+        found += _scan("conftest", lambda d: scanners.conftest(project, d), {})
+        if plan is not None:
+            if project.resources and scanners.plan_resource_count(plan) == 0:
+                error = scanners.ScannerError("the plan lists no resources, so nothing was scanned")
+                found.append(scanners.failed("plan", error))
+            else:
+                files = {"plan.json": json.dumps(plan)}
+                found += _scan("checkov", lambda d: scanners.checkov(project, plan, d), files)
+                found += _scan("trivy", lambda d: scanners.trivy(project, plan, d), files)
+                ran += ["checkov", "trivy"]
+                plan_scanned = True
     report = apply_waivers(found, project.waivers)
     report.scanners = ran
+    report.plan_scanned = plan_scanned
     return report

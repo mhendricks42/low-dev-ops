@@ -1,6 +1,6 @@
 """Severity tiers and waivers: high/critical block apply; only medium/low can be waived."""
 
-from app.catalog.load import CATALOG_DIR, load_catalog
+from app.catalog.load import CATALOG_DIR, Catalog, load_catalog
 from app.guardrails.findings import Finding
 from app.guardrails.naming import check_names
 from app.guardrails.run import apply_waivers
@@ -27,19 +27,19 @@ def waiver(fid: str = "X1", resource: str = "rg1") -> Waiver:
 
 def test_high_finding_blocks_and_cannot_be_waived() -> None:
     report = apply_waivers([finding("high")], [waiver()])
-    assert not report.apply_allowed
+    assert report.blocked
     assert report.findings == [finding("high")]
     assert report.ignored_waivers == [(waiver(), "high findings cannot be waived")]
     assert report.waived == []
 
 
 def test_critical_blocks_too() -> None:
-    assert not apply_waivers([finding("critical")], []).apply_allowed
+    assert apply_waivers([finding("critical")], []).blocked
 
 
 def test_waived_medium_is_moved_out_and_allows_apply() -> None:
     report = apply_waivers([finding("medium"), finding("low", "X2")], [waiver()])
-    assert report.apply_allowed
+    assert not report.blocked
     assert report.waived == [(finding("medium"), waiver())]
     assert report.findings == [finding("low", "X2")]  # unwaived low is shown, not blocking
 
@@ -84,20 +84,20 @@ def test_missing_required_tags_are_medium_per_resource() -> None:
     project = load_project("rg").model_copy(
         update={"tags": {"env": "dev"}, "required_tags": ["env", "owner"]}
     )
-    found = check_tags(project)
+    found = check_tags(project, CATALOG)
     assert [(f.id, f.severity, f.resource) for f in found] == [
         ("LDO_TAG_MISSING:owner", "medium", "rg1")
     ]
     assert "owner" in found[0].message
     rg = project.resources[0]
     own = rg.model_copy(update={"inputs": {**rg.inputs, "tags": {"owner": "me"}}})
-    assert check_tags(project.model_copy(update={"resources": [own]})) == []
+    assert check_tags(project.model_copy(update={"resources": [own]}), CATALOG) == []
 
 
 def test_each_missing_tag_is_its_own_waivable_finding() -> None:
     # A waiver matches (finding id, resource), so one waiver must cover exactly one problem.
     project = load_project("rg").model_copy(update={"tags": {}, "required_tags": ["env", "owner"]})
-    found = check_tags(project)
+    found = check_tags(project, CATALOG)
     assert [f.id for f in found] == ["LDO_TAG_MISSING:env", "LDO_TAG_MISSING:owner"]
     report = apply_waivers(found, [waiver("LDO_TAG_MISSING:owner")])
     assert [f.id for f in report.findings] == ["LDO_TAG_MISSING:env"]
@@ -108,3 +108,23 @@ def test_repeated_scanner_hits_on_one_resource_collapse_to_the_most_severe() -> 
     found = [finding("medium", "CKV_X"), finding("high", "CKV_X"), finding("low", "CKV_Y")]
     report = apply_waivers(found, [])
     assert [(f.id, f.severity) for f in report.findings] == [("CKV_X", "high"), ("CKV_Y", "low")]
+
+
+def test_apply_also_needs_a_scanned_plan() -> None:
+    report = apply_waivers([], [])
+    assert not report.blocked and not report.apply_allowed  # nothing found, but no plan read
+    report.plan_scanned = True
+    assert report.apply_allowed
+
+
+def test_tags_are_only_required_where_the_module_takes_them() -> None:
+    # A resource whose catalog entry has no `tags` input (or an unknown module) cannot be fixed.
+    project = load_project("rg").model_copy(update={"tags": {}, "required_tags": ["env"]})
+    rg = CATALOG.entries["avm-res-resources-resourcegroup"]
+    untaggable = rg.model_copy(
+        update={"inputs": {k: v for k, v in rg.inputs.items() if k != "tags"}}
+    )
+    catalog = Catalog({**CATALOG.entries, rg.module: untaggable})
+    assert check_tags(project, catalog) == []
+    unknown = project.resources[0].model_copy(update={"catalog_ref": "avm-res-unknown-thing@1.0.0"})
+    assert check_tags(project.model_copy(update={"resources": [unknown]}), CATALOG) == []
