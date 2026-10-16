@@ -12,7 +12,8 @@
     "test": "vitest run",
     "e2e": "playwright test",
     "format": "prettier --write . && eslint --fix .",
-    "types": "node scripts/types.mjs"
+    "types": "node scripts/types.mjs",
+    "size": "rm -rf dist && vite build && node scripts/check-size.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

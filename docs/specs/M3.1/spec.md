@@ -46,7 +46,7 @@ The `NAME_PATTERN` check stays as the first line of defence. The response shapes
 **Work:**
 
 - **Measure:** build once with `rollup-plugin-visualizer`, run through `npx` and not committed. Remove any import that turns out to be reachable but unused.
-- **Budget:** `frontend/scripts/check-size.mjs` reads `dist/assets/`, gzips each `.js` file and fails if the Monaco chunk exceeds **750 KB gzipped** or the main `index-*.js` chunk exceeds **80 KB gzipped** (measured: 692 KB and 73 KB). Both limits sit about 10 % above the current measurements.
+- **Budget:** `frontend/scripts/check-size.mjs` reads `dist/assets/`, gzips each `.js` file and fails if the Monaco chunk exceeds **750 KB gzipped** or the main `index-*.js` chunk exceeds **145 KB gzipped** (measured: 692 KB and 133 KB). Both limits sit about 10 % above the current measurements.
 - **Wiring:** `npm run size` runs `vite build` and then the script. `make check` calls it through the `test` target.
 
 #11 closes as "budgeted, core is irreducible" unless measuring finds a real saving.

@@ -4,17 +4,18 @@ Node 22. Run commands from `frontend/`, or use the root `make` targets. The dev 
 
 ## Commands
 
-| What        | Command                                                                                         |
-| ----------- | ----------------------------------------------------------------------------------------------- |
-| Install     | `npm ci`                                                                                        |
-| Lint        | `npm run lint` (eslint + prettier --check)                                                      |
-| Format      | `npm run format`                                                                                |
-| Typecheck   | `npm run typecheck`                                                                             |
-| Unit tests  | `npm test` (vitest, jsdom)                                                                      |
-| One test    | `npx vitest run src/App.test.tsx`                                                               |
-| E2E         | `npm run e2e` (Playwright; starts API and UI in a temp workspace; writes `docs/specs/M3/*.png`) |
-| Run         | `npm run dev`, then open `/?project=<name>`                                                     |
-| Model types | `npm run types` (from the JSON Schemas; `npm run lint` fails if they drift)                     |
+| What        | Command                                                                                                                   |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Install     | `npm ci`                                                                                                                  |
+| Lint        | `npm run lint` (eslint + prettier --check)                                                                                |
+| Format      | `npm run format`                                                                                                          |
+| Typecheck   | `npm run typecheck`                                                                                                       |
+| Unit tests  | `npm test` (vitest, jsdom)                                                                                                |
+| One test    | `npx vitest run src/App.test.tsx`                                                                                         |
+| E2E         | `npm run e2e` (Playwright; starts API and UI in a temp workspace; writes `docs/specs/M3/*.png`)                           |
+| Run         | `npm run dev`, then open `/?project=<name>`                                                                               |
+| Bundle size | `npm run size` (builds, then fails if a chunk passes its gzipped budget in `scripts/check-size.mjs`; part of `make test`) |
+| Model types | `npm run types` (from the JSON Schemas; `npm run lint` fails if they drift)                                               |
 
 ## Rules
 
