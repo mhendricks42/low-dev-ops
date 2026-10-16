@@ -99,7 +99,7 @@ def run(
     }
     chunks: dict[str, list[str]] = {name: [] for name in names.values()}
     pending = ""
-    selector = selectors.DefaultSelector()  # one per run; nothing else starts before `try`
+    selector = selectors.DefaultSelector()
     timer = threading.Timer(timeout, partial(kill_group, on_timeout=True))
     timer.daemon = True
     try:
