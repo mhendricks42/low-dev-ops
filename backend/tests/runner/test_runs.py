@@ -1,5 +1,6 @@
 """Run framework: one run per key, logged lines, and an SSE log that ends with the exit code."""
 
+import inspect
 import json
 import sys
 import threading
@@ -8,11 +9,15 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app import proc
+from app.api import runs as runs_api
 from app.main import app
+from app.runner import runs
 from app.runner.runs import REGISTRY, Run, RunBusy, RunRegistry, Step, run_steps
 
 client = TestClient(app, base_url="http://127.0.0.1:8000")
 PY = sys.executable
+ENV = proc.inherited_env()
 
 
 def wait(run: Run) -> None:
@@ -37,9 +42,11 @@ def test_one_run_per_key_and_a_second_start_is_busy() -> None:
 
 def test_steps_stream_lines_and_stop_at_the_first_failure(tmp_path: Path) -> None:
     steps = [
-        Step([PY, "-c", "print('first step')"], cwd=tmp_path, timeout=10),
-        Step([PY, "-c", "import sys; print('boom'); sys.exit(4)"], cwd=tmp_path, timeout=10),
-        Step([PY, "-c", "print('never')"], cwd=tmp_path, timeout=10),
+        Step([PY, "-c", "print('first step')"], cwd=tmp_path, timeout=10, env=ENV),
+        Step(
+            [PY, "-c", "import sys; print('boom'); sys.exit(4)"], cwd=tmp_path, timeout=10, env=ENV
+        ),
+        Step([PY, "-c", "print('never')"], cwd=tmp_path, timeout=10, env=ENV),
     ]
     run = RunRegistry().start("k", "plan", lambda r: run_steps(r, steps))
     wait(run)
@@ -70,7 +77,7 @@ def test_the_log_stream_ends_with_the_exit_code(tmp_path: Path, code: int) -> No
     run = REGISTRY.start(
         f"test:{code}",
         "plan",
-        lambda r: run_steps(r, [Step([PY, "-c", script], cwd=tmp_path, timeout=10)]),
+        lambda r: run_steps(r, [Step([PY, "-c", script], cwd=tmp_path, timeout=10, env=ENV)]),
     )
     with client.stream("GET", f"/api/runs/{run.id}/log") as response:
         assert response.status_code == 200
@@ -103,3 +110,40 @@ def test_run_status_and_unknown_runs() -> None:
     }
     assert client.get("/api/runs/not-a-run").status_code == 404
     assert client.get("/api/runs/not-a-run/log").status_code == 404
+
+
+def test_memory_keeps_a_capped_log_but_the_file_keeps_everything(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(runs, "MAX_LINES", 5)
+    log = tmp_path / "run.log"
+    run = Run(id="r", key="k", kind="plan", log_file=log)
+    for i in range(8):
+        run.append(f"line {i}")
+    assert run.lines == [*(f"line {i}" for i in range(5)), runs.TRUNCATED]
+    assert log.read_text().splitlines() == [f"line {i}" for i in range(8)]
+
+
+def test_only_the_latest_run_per_key_is_kept() -> None:
+    registry = RunRegistry()
+    first = registry.start("project:a", "plan", lambda r: 0)
+    wait(first)
+    second = registry.start("project:a", "apply", lambda r: 0)
+    wait(second)
+    assert registry.get(first.id) is None and registry.get(second.id) is second
+
+
+def test_a_run_always_finishes_even_on_base_exceptions() -> None:
+    def interrupted(run: Run) -> int:
+        raise KeyboardInterrupt
+
+    registry = RunRegistry()
+    run = registry.start("k", "plan", interrupted)
+    assert run.wait(20) and run.status == "failed"
+    wait(registry.start("k", "plan", lambda r: 0))  # the key is free again
+
+
+def test_the_log_stream_holds_no_worker_thread() -> None:
+    # Each open stream would otherwise pin one of the API's ~40 worker threads (EventSource
+    # reconnects can open many), so the generator is async and only polls.
+    assert inspect.isasyncgenfunction(runs_api._events)
