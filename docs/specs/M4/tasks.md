@@ -8,7 +8,7 @@ One Conventional Commit per task. Exit criteria (EC) come from [ROADMAP](../../R
 - [x] T4 `feat(backend)`: findings, naming and tag checks, and the waiver/report logic (`run.py`).
 - [x] T5 `feat(backend)`: scanner adapters (Conftest, Checkov, Trivy), fail-closed handling, stub binaries, starter Rego policies and `severity.yaml`.
 - [x] T6 `feat(backend)`: `POST /api/guardrails/check` and the fixtures `high`, `waived-medium` and `clean` (**EC1–EC3**).
-- [ ] T7 `test(backend)`: real-scanner and `conftest verify` tests; set `LOWDEVOPS_REQUIRE_SCANNERS` in the dev container.
+- [x] T7 `test(backend)`: real-scanner and `conftest verify` tests; set `LOWDEVOPS_REQUIRE_SCANNERS` in the dev container.
 - [ ] T8 `feat(frontend)`: waiver actions, the API client and the Checks tab, with unit tests.
 - [ ] T9 `test(frontend)`: `e2e/m4.spec.ts` covering the keyboard waive flow and axe on every state, with screenshots.
 - [x] T10 `docs`: the `caf-naming` skill, `policies/README.md`, CLAUDE.md commands and ARCHITECTURE notes.
