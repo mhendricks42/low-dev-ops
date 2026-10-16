@@ -19,7 +19,10 @@ interface Store {
   dispatch: (action: Action) => void
   catalog: CatalogEntry[]
   hcl: string
+  // Live (role=status) text: changes only when the outcome does, so typing is not announced.
   saveStatus: string
+  // True while a save request is in flight; shown visually only (#12).
+  saving: boolean
   saveError: string | null
   // True from a change until the save of that change succeeds (header status aria-busy).
   pending: boolean
@@ -58,6 +61,7 @@ function Loaded({
   }, [])
   const [hcl, setHcl] = useState('')
   const [saveStatus, setSaveStatus] = useState('Loaded')
+  const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [announcement, announce] = useState('')
 
@@ -66,9 +70,7 @@ function Loaded({
     let cancelled = false
     const rev = revisionRef.current // the change this save covers
     const timer = setTimeout(() => {
-      // Set when a save really starts (not per keystroke), so each later "All changes saved"
-      // is a real change that a screen reader announces, without chattering while typing.
-      setSaveStatus('Saving…')
+      setSaving(true)
       api
         .generate(project)
         .then((text) => !cancelled && setHcl(text))
@@ -77,12 +79,14 @@ function Loaded({
         .saveProject(project)
         .then(() => {
           if (cancelled) return
+          setSaving(false)
           setSaveStatus('All changes saved')
           setSaveError(null)
           setSavedRevision(rev)
         })
         .catch((e: unknown) => {
           if (cancelled) return
+          setSaving(false)
           setSaveStatus('Not saved')
           setSaveError(`Your changes were not saved: ${(e as Error).message}`)
         })
@@ -101,6 +105,7 @@ function Loaded({
         catalog,
         hcl,
         saveStatus,
+        saving,
         saveError,
         pending: revision !== savedRevision,
         announcement,
