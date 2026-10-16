@@ -18,5 +18,7 @@ export interface CheckReport {
   ignored_waivers: { waiver: Waiver; reason: string }[]
   unused_waivers: Waiver[]
   scanners: string[]
+  plan_scanned: boolean // Checkov and Trivy read a plan; apply needs one (M5)
+  blocked: boolean // an unwaived high or critical finding
   apply_allowed: boolean
 }
