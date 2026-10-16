@@ -85,8 +85,26 @@ def test_missing_required_tags_are_medium_per_resource() -> None:
         update={"tags": {"env": "dev"}, "required_tags": ["env", "owner"]}
     )
     found = check_tags(project)
-    assert [(f.id, f.severity, f.resource) for f in found] == [("LDO_TAG_MISSING", "medium", "rg1")]
+    assert [(f.id, f.severity, f.resource) for f in found] == [
+        ("LDO_TAG_MISSING:owner", "medium", "rg1")
+    ]
     assert "owner" in found[0].message
     rg = project.resources[0]
     own = rg.model_copy(update={"inputs": {**rg.inputs, "tags": {"owner": "me"}}})
     assert check_tags(project.model_copy(update={"resources": [own]})) == []
+
+
+def test_each_missing_tag_is_its_own_waivable_finding() -> None:
+    # A waiver matches (finding id, resource), so one waiver must cover exactly one problem.
+    project = load_project("rg").model_copy(update={"tags": {}, "required_tags": ["env", "owner"]})
+    found = check_tags(project)
+    assert [f.id for f in found] == ["LDO_TAG_MISSING:env", "LDO_TAG_MISSING:owner"]
+    report = apply_waivers(found, [waiver("LDO_TAG_MISSING:owner")])
+    assert [f.id for f in report.findings] == ["LDO_TAG_MISSING:env"]
+
+
+def test_repeated_scanner_hits_on_one_resource_collapse_to_the_most_severe() -> None:
+    # e.g. Checkov failing the same check on two NSG rules inside module.nsg1
+    found = [finding("medium", "CKV_X"), finding("high", "CKV_X"), finding("low", "CKV_Y")]
+    report = apply_waivers(found, [])
+    assert [(f.id, f.severity) for f in report.findings] == [("CKV_X", "high"), ("CKV_Y", "low")]

@@ -5,7 +5,7 @@ open_sources := {"*", "Internet", "0.0.0.0/0", "Any"}
 
 admin_ports := {"22", "3389", "*"}
 
-deny contains {"id": "LDO_NSG_ADMIN_OPEN", "resource": r.id, "msg": sprintf("%s: rule '%s' opens port %s to the internet", [r.id, key, rule.destination_port_range])} if {
+deny contains {"id": sprintf("LDO_NSG_ADMIN_OPEN:%s", [key]), "resource": r.id, "msg": sprintf("%s: rule '%s' opens port %s to the internet", [r.id, key, rule.destination_port_range])} if {
 	some r in input.resources
 	r.module == "avm-res-network-networksecuritygroup"
 	some key, rule in r.inputs.security_rules

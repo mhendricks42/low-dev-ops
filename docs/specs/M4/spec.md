@@ -30,18 +30,18 @@ class Finding:
 ```
 
 - `waivable` is `severity in {"medium", "low"}`.
-- **Waiver match:** a waiver matches a finding when `finding_id` and `resource` are equal.
+- **Waiver match:** a waiver matches a finding when `finding_id` and `resource` are equal. Finding ids are unique per resource: ids that could repeat carry a suffix (`LDO_TAG_MISSING:owner`, `LDO_NSG_ADMIN_OPEN:<rule>`), and repeated scanner hits on one resource collapse to the most severe.
 - **Waiver on a high or critical finding:** it has no effect and is returned under `ignored_waivers` with the reason.
 - **Unmatched waiver:** a waiver that matches no finding is returned under `unused_waivers`. Nothing is deleted automatically.
 - **Apply rule:** `apply_allowed` is true exactly when no high or critical finding remains. Waivers can only cover medium and low, so they never change this. An unwaived medium or low finding does not block; it is shown.
-- **Fail closed:** a scanner that is missing, times out or returns output that can't be parsed produces a `high` finding `LDO_SCANNER_FAILED` with source `guardrails`, so apply is blocked rather than silently clean.
+- **Fail closed:** a scanner that is missing, times out or returns output that can't be parsed produces a `high` finding `LDO_SCANNER_FAILED:<tool>` with source `guardrails`, so apply is blocked rather than silently clean.
 
 ## Checks (`backend/app/guardrails/`)
 
 | Module        | Checks                                                                                                                                                                                                                                            | Severity      |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
 | `naming.py`   | **High** if a `fill: name` input breaks its type's limits: `LDO_NAME_LENGTH`, `LDO_NAME_CHARS`. **Low** if it doesn't match the name the project pattern gives: `LDO_NAME_PATTERN`                                                                | high / low    |
-| `tags.py`     | Every resource whose entry has a `tags` input must end up with each key in `project.required_tags` (project tags merged with the resource's own): `LDO_TAG_MISSING`                                                                               | medium        |
+| `tags.py`     | Every resource whose entry has a `tags` input must end up with each key in `project.required_tags` (project tags merged with the resource's own): `LDO_TAG_MISSING:<key>`, one per tag so one waiver covers one tag                                                                               | medium        |
 | `conftest.py` | Runs `conftest test --output json -p policies/conftest -` on the project JSON enriched with each resource's catalog module. `deny` rules are high and `warn` rules are medium. Each rule's id comes from its message prefix, e.g. `LDO_ST_TLS: …` | high / medium |
 | `checkov.py`  | `checkov -d <tmp> --framework terraform -o json --quiet`, plus `-f plan.json --framework terraform_plan` when a plan is given. Severity comes from `policies/severity.yaml` (check id → severity); unmapped checks default to medium              | from map      |
 | `trivy.py`    | `trivy config --format json <tmp>`, which also reads `plan.json` when it is in the temp dir. Trivy's own severity is used, `UNKNOWN` maps to medium                                                                                               | from Trivy    |

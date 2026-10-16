@@ -33,7 +33,7 @@ ssh_from_internet := {"access": "Allow", "direction": "Inbound", "source_address
 
 test_nsg_ssh_from_internet_denied if {
 	some d in deny with input as nsg(ssh_from_internet)
-	d.id == "LDO_NSG_ADMIN_OPEN"
+	d.id == "LDO_NSG_ADMIN_OPEN:r"
 }
 
 test_nsg_https_from_internet_allowed if {

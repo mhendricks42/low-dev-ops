@@ -68,7 +68,9 @@ def test_a_broken_scanner_blocks_apply(monkeypatch: pytest.MonkeyPatch, mode: st
     project, plan = load_guardrail_fixture("clean")
     report = check(project, CATALOG, plan)
     assert not report.apply_allowed
-    assert [(f.id, f.severity) for f in report.findings] == [("LDO_SCANNER_FAILED", "high")] * 3
+    assert {(f.id, f.severity) for f in report.findings} == {
+        (f"LDO_SCANNER_FAILED:{tool}", "high") for tool in ("conftest", "checkov", "trivy")
+    }
 
 
 def test_a_missing_scanner_blocks_apply(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -84,7 +86,7 @@ def test_a_waiver_on_a_scanner_failure_is_ignored(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setenv("LOWDEVOPS_STUB_MODE", "crash")
     project, _ = load_guardrail_fixture("clean")
     waiver = {
-        "findingId": "LDO_SCANNER_FAILED",
+        "findingId": "LDO_SCANNER_FAILED:conftest",
         "resource": "project",
         "reason": "x" * 20,
         "by": "me",
