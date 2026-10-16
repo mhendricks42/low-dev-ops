@@ -130,3 +130,8 @@ pre {
   stroke: var(--accent);
   stroke-width: 3;
 }
+
+.table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}

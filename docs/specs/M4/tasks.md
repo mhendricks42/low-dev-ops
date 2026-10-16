@@ -10,5 +10,5 @@ One Conventional Commit per task. Exit criteria (EC) come from [ROADMAP](../../R
 - [x] T6 `feat(backend)`: `POST /api/guardrails/check` and the fixtures `high`, `waived-medium` and `clean` (**EC1–EC3**).
 - [x] T7 `test(backend)`: real-scanner and `conftest verify` tests; set `LOWDEVOPS_REQUIRE_SCANNERS` in the dev container.
 - [x] T8 `feat(frontend)`: waiver actions, the API client and the Checks tab, with unit tests.
-- [ ] T9 `test(frontend)`: `e2e/m4.spec.ts` covering the keyboard waive flow and axe on every state, with screenshots.
+- [x] T9 `test(frontend)`: `e2e/m4.spec.ts` covering the keyboard waive flow and axe on every state, with screenshots.
 - [x] T10 `docs`: the `caf-naming` skill, `policies/README.md`, CLAUDE.md commands and ARCHITECTURE notes.
