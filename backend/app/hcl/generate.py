@@ -67,13 +67,22 @@ def _attributes(pairs: list[tuple[str, str]]) -> list[str]:
     return [f"  {k.ljust(width)} = {v}" for k, v in pairs]
 
 
-def _module(r: Resource) -> str:
+def _with_project_tags(inputs: dict[str, JsonValue], tags: dict[str, str]) -> dict[str, JsonValue]:
+    # M4: project tags go on every module (AVM resource modules all take `tags`); the
+    # resource's own keys win. Non-object tags are left as written.
+    own = inputs.get("tags", {})
+    if not tags or not isinstance(own, dict):
+        return inputs
+    return {**inputs, "tags": {**tags, **own}}
+
+
+def _module(r: Resource, tags: dict[str, str]) -> str:
     name, version = r.catalog_ref.split("@")
     lines = [f'module "{r.id}" {{']
     lines += _attributes(
         [("source", _string(f"Azure/{name}/azurerm")), ("version", _string(version))]
     )
-    args = {k: render_value(v) for k, v in r.inputs.items()}
+    args = {k: render_value(v) for k, v in _with_project_tags(r.inputs, tags).items()}
     args |= {ref.input: f"module.{ref.to}.{ref.output}" for ref in r.refs}
     if args:
         lines += ["", *_attributes(sorted(args.items()))]
@@ -84,7 +93,7 @@ def _module(r: Resource) -> str:
 def generate(project: Project) -> str:
     sections = [
         HEADER,
-        *(_module(r) for r in project.resources),
+        *(_module(r, project.tags) for r in project.resources),
         *(c.hcl for c in project.custom_hcl),
     ]
     return "\n\n".join(sections) + "\n"
