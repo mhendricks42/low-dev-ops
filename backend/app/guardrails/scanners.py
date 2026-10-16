@@ -7,17 +7,13 @@ finding, so a broken scanner can never make a project look clean.
 
 import hashlib
 import json
-import os
-import shutil
-import signal
-import subprocess
 from collections.abc import Iterator
-from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from app import proc
 from app.guardrails.findings import Finding, Severity
 from app.model import Project
 
@@ -47,40 +43,22 @@ def curated_checks(tool: str) -> dict[str, Severity]:
 _CONFIG_PREFIXES = ("CHECKOV_", "CKV_", "BC_", "PRISMA_", "TRIVY_", "CONFTEST_")
 
 
-def _env() -> dict[str, str]:
-    return {k: v for k, v in os.environ.items() if not k.startswith(_CONFIG_PREFIXES)}
-
-
 def _run(args: list[str], cwd: Path, ok_codes: set[int], env: dict[str, str] | None = None) -> Any:
     tool = args[0]
-    binary = shutil.which(tool)  # an absolute path, resolved on the API's PATH
-    if binary is None:
-        raise ScannerError(f"{tool} is not installed")
-    # Own process group, so a timeout kills the scanner and everything it started.
-    with (
-        subprocess.Popen(  # noqa: S603 - fixed argument list, no shell
-            [binary, *args[1:]],
-            cwd=cwd,
-            env={**_env(), **(env or {})},
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            start_new_session=True,
-        ) as process
-    ):
-        try:
-            stdout, stderr = process.communicate(timeout=TIMEOUT_SECONDS)
-        except subprocess.TimeoutExpired as e:
-            with suppress(ProcessLookupError):  # the whole group may have just exited
-                os.killpg(process.pid, signal.SIGKILL)
-            process.communicate()
-            raise ScannerError(f"{tool} took longer than {TIMEOUT_SECONDS} s") from e
-    if process.returncode not in ok_codes:
-        tail = (stderr or stdout).strip().splitlines()[-1:] or ["no output"]
-        raise ScannerError(f"{tool} exited with {process.returncode}: {tail[0][:200]}")
     try:
-        return json.loads(stdout)
+        done = proc.run(
+            args,
+            cwd=cwd,
+            timeout=TIMEOUT_SECONDS,
+            env=proc.inherited_env(drop_prefixes=_CONFIG_PREFIXES, extra=env),
+        )
+    except proc.ProcError as e:
+        raise ScannerError(str(e)) from e
+    if done.returncode not in ok_codes:
+        tail = (done.stderr or done.stdout).strip().splitlines()[-1:] or ["no output"]
+        raise ScannerError(f"{tool} exited with {done.returncode}: {tail[0][:200]}")
+    try:
+        return json.loads(done.stdout)
     except json.JSONDecodeError as e:
         raise ScannerError(f"{tool} printed output that is not JSON") from e
 
