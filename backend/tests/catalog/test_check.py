@@ -51,16 +51,18 @@ output "name" { value = "x" }
 output "resource_id" { value = "y" }
 """
 
-# Installs each module in main.tf from STUB_MODULES/<key>, at STUB_VERSION or the pinned version.
+# Installs each module in main.tf from TF_STUB_MODULES/<key>, at TF_STUB_VERSION or its pin.
 STUB = f"""#!{sys.executable}
 import json, os, re, shutil, sys
 from pathlib import Path
 args = sys.argv[1:]
-with open(os.environ["STUB_LOG"], "a") as log:
+with open(os.environ["TF_STUB_LOG"], "a") as log:
     log.write(json.dumps(args) + "\\n")
+if "ARM_CLIENT_SECRET" in os.environ or "TF_VAR_secret" in os.environ:
+    sys.exit("stub saw a secret")
 workdir = Path(args[0].removeprefix("-chdir="))
 command = args[1]
-if os.environ.get("STUB_FAIL") == command:
+if os.environ.get("TF_STUB_FAIL") == command:
     print(f"Error: stub {{command}} failed", file=sys.stderr)
     sys.exit(1)
 if command == "init":
@@ -68,9 +70,9 @@ if command == "init":
     records = []
     for key, version in re.findall(r'module "(\\w+)" {{\\n.*\\n  version = "([^"]+)"', text):
         target = workdir / ".terraform" / "modules" / key
-        shutil.copytree(Path(os.environ["STUB_MODULES"]) / key, target)
-        records.append({{"Key": key, "Version": os.environ.get("STUB_VERSION", version),
-                        "Dir": os.environ.get("STUB_DIR", f".terraform/modules/{{key}}")}})
+        shutil.copytree(Path(os.environ["TF_STUB_MODULES"]) / key, target)
+        records.append({{"Key": key, "Version": os.environ.get("TF_STUB_VERSION", version),
+                        "Dir": os.environ.get("TF_STUB_DIR", f".terraform/modules/{{key}}")}})
     (workdir / ".terraform" / "modules" / "modules.json").write_text(
         json.dumps({{"Modules": records}}))
 """
@@ -89,8 +91,8 @@ def stub(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         (module / "variables.tf").write_text(variables)
         (module / "outputs.tf").write_text(OUTPUTS)
     monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
-    monkeypatch.setenv("STUB_MODULES", str(tmp_path / "modules"))
-    monkeypatch.setenv("STUB_LOG", str(tmp_path / "calls.log"))
+    monkeypatch.setenv("TF_STUB_MODULES", str(tmp_path / "modules"))
+    monkeypatch.setenv("TF_STUB_LOG", str(tmp_path / "calls.log"))
     return tmp_path
 
 
@@ -122,20 +124,26 @@ def test_passing_entry_runs_init_then_validate(stub: Path) -> None:
     assert 'module "vnet1"' in (stub / "work" / "main.tf").read_text()
 
 
+def test_secrets_are_not_passed_to_terraform(stub: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ARM_CLIENT_SECRET", "not-for-providers")
+    monkeypatch.setenv("TF_VAR_secret", "not-for-providers")
+    assert _check(stub) == ["dns_servers"]
+
+
 def test_init_failure_names_the_step(stub: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("STUB_FAIL", "init")
+    monkeypatch.setenv("TF_STUB_FAIL", "init")
     with pytest.raises(CheckError, match="init: Error: stub init failed"):
         _check(stub)
 
 
 def test_validate_failure_names_the_step(stub: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("STUB_FAIL", "validate")
+    monkeypatch.setenv("TF_STUB_FAIL", "validate")
     with pytest.raises(CheckError, match="validate: Error: stub validate failed"):
         _check(stub)
 
 
 def test_resolved_version_must_equal_pin(stub: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("STUB_VERSION", "0.22.4")
+    monkeypatch.setenv("TF_STUB_VERSION", "0.22.4")
     with pytest.raises(CheckError, match=r"registry resolved '0\.22\.4', catalog pins '0\.22\.3'"):
         _check(stub)
 
@@ -143,7 +151,7 @@ def test_resolved_version_must_equal_pin(stub: Path, monkeypatch: pytest.MonkeyP
 def test_module_dir_outside_workdir_is_rejected(
     stub: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("STUB_DIR", "../modules/vnet1")
+    monkeypatch.setenv("TF_STUB_DIR", "../modules/vnet1")
     with pytest.raises(CheckError, match="is not under the workdir"):
         _check(stub)
 
@@ -181,7 +189,7 @@ def test_main_reports_each_entry(stub: Path, capsys: pytest.CaptureFixture[str])
 def test_main_fails_on_first_bad_entry(
     stub: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setenv("STUB_FAIL", "validate")
+    monkeypatch.setenv("TF_STUB_FAIL", "validate")
     assert main([str(MINIMAL)]) == 1
     assert "FAIL avm-res-network-virtualnetwork@0.22.3: validate:" in capsys.readouterr().err
 

@@ -22,6 +22,10 @@ from app.hcl.generate import generate
 
 INIT_TIMEOUT = 900  # downloads the module and its providers
 VALIDATE_TIMEOUT = 300
+_PASS_ENV = frozenset(
+    {"PATH", "HOME", "TMPDIR", "SSL_CERT_FILE", "SSL_CERT_DIR"}
+    | {"HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "https_proxy", "http_proxy", "no_proxy"}
+)
 
 
 class CheckError(Exception):
@@ -63,8 +67,15 @@ def check_interface(entry: CatalogEntry, interface: ModuleInterface) -> list[str
     return sorted(set(interface.variables) - set(entry.inputs))
 
 
+def _is_tf_setting(name: str) -> bool:
+    # TF_* configures terraform itself (plugin cache, CLI config); TF_VAR_* can carry secrets.
+    return name.startswith("TF_") and not name.startswith("TF_VAR_")
+
+
 def _terraform(terraform: str, workdir: Path, step: str, *args: str, timeout: int) -> None:
-    env = {**os.environ, "TF_IN_AUTOMATION": "1", "CHECKPOINT_DISABLE": "1"}
+    # Downloaded providers run under this env: pass only what terraform needs, never ARM_* secrets.
+    env = {k: v for k, v in os.environ.items() if k in _PASS_ENV or _is_tf_setting(k)}
+    env |= {"TF_IN_AUTOMATION": "1", "CHECKPOINT_DISABLE": "1"}
     try:
         result = subprocess.run(  # noqa: S603 - argument list, fixed subcommands, no shell
             [terraform, f"-chdir={workdir}", *args, "-no-color"],

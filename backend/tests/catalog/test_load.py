@@ -18,6 +18,7 @@ EXPECTED_ERRORS = {
     "example-unknown-input": "example sets unlisted input 'colour'",
     "file-name-mismatch": "does not match module 'avm-res-network-virtualnetwork'",
     "hidden-without-default": "hidden input 'enable_telemetry' needs a default",
+    "non-finite-default": "must be a finite number",
     "not-a-mapping": "must be a YAML mapping",
     "python-tag": "could not determine a constructor",
     "ranged-version": "String should match pattern",

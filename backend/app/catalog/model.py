@@ -14,7 +14,7 @@ from pydantic import (
 )
 from pydantic.alias_generators import to_camel
 
-from app.model import NAME_PATTERN, _not_reserved
+from app.model import NAME_PATTERN, _finite, _not_reserved
 
 MODULE_PATTERN = r"^avm-[a-z0-9-]+$"
 VERSION_PATTERN = r"^[0-9]+\.[0-9]+\.[0-9]+$"
@@ -86,6 +86,9 @@ class CatalogEntry(_Model):
                 raise ValueError(f"basic input '{name}' needs a default, a fill or an allowed ref")
             if spec.tier == "hidden" and not has_default:
                 raise ValueError(f"hidden input '{name}' needs a default")
+        for spec in self.inputs.values():
+            _finite(spec.default)
+        _finite(self.example)
         for name in self.example:
             if name not in self.inputs:
                 raise ValueError(f"example sets unlisted input '{name}'")
