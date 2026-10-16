@@ -52,13 +52,13 @@ flowchart LR
   AZ --> State
 ```
 
-| Component | Responsibility |
-| --- | --- |
-| `catalog` | Loads `catalog/*.yaml`. Serves input schemas (basic / advanced / hidden), CAF defaults and allowed references to the wizard and canvas |
-| `hcl` | A deterministic generator (model → canonical HCL) and a parser (HCL → model + opaque custom-HCL blocks). Both are snapshot- and round-trip-tested |
-| `guardrails` | CAF naming and tag rules, Conftest policies, and Checkov/Trivy on generated HCL and on the plan JSON. Every finding gets a severity |
-| `runner` | Runs `terraform init/plan/show -json/apply` as subprocesses. Streams logs, keeps one run per project, and applies only the saved plan |
-| `bootstrap` | Creates or checks the shared state backend through `az` and records it in local settings |
+| Component    | Responsibility                                                                                                                                                                                                                                                                |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `catalog`    | Loads `catalog/*.yaml`. Serves input schemas (basic / advanced / hidden), CAF defaults and allowed references to the wizard and canvas                                                                                                                                        |
+| `hcl`        | A deterministic generator (model → canonical HCL) and a parser (HCL → model + opaque custom-HCL blocks). Both are snapshot- and round-trip-tested                                                                                                                             |
+| `guardrails` | CAF naming and tag rules and Conftest policies on the model; Checkov and Trivy on the plan JSON (AVM module calls are opaque before `terraform init`). Every finding gets a severity; `policies/scanners.yaml` picks the adopted scanner checks ([M4 spec](specs/M4/spec.md)) |
+| `runner`     | Runs `terraform init/plan/show -json/apply` as subprocesses. Streams logs, keeps one run per project, and applies only the saved plan                                                                                                                                         |
+| `bootstrap`  | Creates or checks the shared state backend through `az` and records it in local settings                                                                                                                                                                                      |
 
 ## Plan and apply flow
 
@@ -93,22 +93,41 @@ Pydantic models in `backend/app` are the source. The JSON Schema is generated fr
 ```jsonc
 {
   "schemaVersion": 1,
-  "meta": { "name": "webapp-dev", "created": "...", "lowdevopsVersion": "0.1.0" },
+  "meta": {
+    "name": "webapp-dev",
+    "created": "...",
+    "lowdevopsVersion": "0.1.0",
+  },
   "subscription": { "id": "...", "tenantId": "...", "location": "westeurope" },
-  "naming": { "workload": "webapp", "env": "dev", "region": "weu", "pattern": "{type}-{workload}-{env}-{region}" },
+  "naming": {
+    "workload": "webapp",
+    "env": "dev",
+    "region": "weu",
+    "pattern": "{type}-{workload}-{env}-{region}",
+  },
   "tags": { "env": "dev", "owner": "..." },
   "resources": [
     {
-      "id": "vnet1",                       // stable; becomes module.vnet1
+      "id": "vnet1", // stable; becomes module.vnet1
       "catalogRef": "avm-res-network-virtualnetwork@0.x.y",
-      "parent": "rg1",                     // containment, drawn as nesting
+      "parent": "rg1", // containment, drawn as nesting
       "inputs": { "address_space": ["10.0.0.0/16"] },
-      "refs": [{ "input": "resource_group_name", "to": "rg1", "output": "name" }],
-      "layout": { "x": 120, "y": 80 }      // canvas only; ignored by the generator
-    }
+      "refs": [
+        { "input": "resource_group_name", "to": "rg1", "output": "name" },
+      ],
+      "layout": { "x": 120, "y": 80 }, // canvas only; ignored by the generator
+    },
   ],
-  "customHcl": [{ "id": "c1", "hcl": "..." }],  // verbatim, view-only in GUI
-  "waivers": [{ "findingId": "CKV_AZURE_35", "resource": "sa1", "reason": "...", "by": "...", "at": "..." }]
+  "customHcl": [{ "id": "c1", "hcl": "..." }], // verbatim, view-only in GUI
+  "waivers": [
+    {
+      "findingId": "CKV_AZURE_35",
+      "resource": "sa1",
+      "reason": "...",
+      "by": "...",
+      "at": "...",
+    },
+  ],
 }
 ```
 

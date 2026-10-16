@@ -38,16 +38,18 @@ class Finding:
 
 ## Checks (`backend/app/guardrails/`)
 
-| Module        | Checks                                                                                                                                                                                                                                            | Severity      |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| `naming.py`   | **High** if a `fill: name` input breaks its type's limits: `LDO_NAME_LENGTH`, `LDO_NAME_CHARS`. **Low** if it doesn't match the name the project pattern gives: `LDO_NAME_PATTERN`                                                                | high / low    |
-| `tags.py`     | Every resource whose entry has a `tags` input must end up with each key in `project.required_tags` (project tags merged with the resource's own): `LDO_TAG_MISSING:<key>`, one per tag so one waiver covers one tag                                                                               | medium        |
-| `conftest.py` | Runs `conftest test --output json -p policies/conftest -` on the project JSON enriched with each resource's catalog module. `deny` rules are high and `warn` rules are medium. Each rule's id comes from its message prefix, e.g. `LDO_ST_TLS: …` | high / medium |
-| `checkov.py`  | `checkov -d <tmp> --framework terraform -o json --quiet`, plus `-f plan.json --framework terraform_plan` when a plan is given. Severity comes from `policies/severity.yaml` (check id → severity); unmapped checks default to medium              | from map      |
-| `trivy.py`    | `trivy config --format json <tmp>`, which also reads `plan.json` when it is in the temp dir. Trivy's own severity is used, `UNKNOWN` maps to medium                                                                                               | from Trivy    |
-| `run.py`      | `check(project, catalog, plan_json=None) -> Report` runs everything and applies waivers                                                                                                                                                           | —             |
+| Module                   | Checks                                                                                                                                                                                                                                                                                                                            | Severity             |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| `naming.py`              | **High** if a `fill: name` input breaks its type's limits: `LDO_NAME_LENGTH`, `LDO_NAME_CHARS`. **Low** if it doesn't match the name the project pattern gives: `LDO_NAME_PATTERN`                                                                                                                                                | high / low           |
+| `tags.py`                | Every resource whose entry has a `tags` input must end up with each key in `project.required_tags` (project tags merged with the resource's own): `LDO_TAG_MISSING:<key>`, one per tag so one waiver covers one tag                                                                                                               | medium               |
+| `scanners.py` (Conftest) | `conftest test --output json --parser json --policy policies/conftest input.json`, where `input.json` is the project's resources with their catalog module. `deny` rules are high and `warn` rules are medium. Each rule returns its id and resource as metadata, e.g. `LDO_ST_TLS` on `st1`                                      | high / medium        |
+| `scanners.py` (Checkov)  | Only with a plan: `checkov --file plan.json --framework terraform_plan --output json --quiet --compact --skip-download --check <curated ids>`. Only the checks listed in `policies/scanners.yaml` run, at the severity listed there (free Checkov reports none)                                                                   | from `scanners.yaml` |
+| `scanners.py` (Trivy)    | Only with a plan: `trivy config --format json --quiet --skip-check-update --disable-telemetry .` on a dir holding `plan.json`. Findings not listed in `policies/scanners.yaml` are dropped; listed ones take its severity. Trivy names plan resources `<type>.<name>_<md5 of the module address>`, mapped back to the resource id | from `scanners.yaml` |
+| `run.py`                 | `check(project, catalog, plan=None) -> Report` runs everything, collapses duplicate (id, resource) pairs and applies waivers                                                                                                                                                                                                      | —                    |
 
-- **Subprocess rules:** scanners run on argument lists (never `shell=True`) with a 120 s timeout each. They run in a fresh temp dir that holds only the generated `main.tf` and, if given, `plan.json`. The temp dir is deleted afterwards and nothing touches the workspace. A module address `module.<id>` in scanner output is mapped back to the resource id.
+- **Why only the plan for Checkov and Trivy:** AVM module calls are opaque until `terraform init` downloads the modules, so scanning the generated HCL finds nothing (checked with both tools). The ROADMAP's "HCL" is covered by Conftest, naming and tags on the model the HCL is generated from.
+- **Curated checks (`policies/scanners.yaml`):** with every check on, real Checkov fails 6–11 checks on a reasonable sandbox storage account (private endpoints, customer-managed keys, diagnostic logs), so a clean project could never be clean. The table lists the security checks LowDevOps adopts and the severity it gives each; adding a line adopts another.
+- **Subprocess rules:** scanners run on argument lists (never `shell=True`) with a 120 s timeout each. Each tool runs in its own fresh temp dir that holds only `input.json` (Conftest) or `plan.json` (Checkov, Trivy). The temp dir is deleted afterwards and nothing touches the workspace. A module address `module.<id>` in scanner output is mapped back to the resource id.
 - **Starter policies** in `policies/conftest/*.rego`, each with Conftest unit tests (`conftest verify`):
   - storage `min_tls_version` must be `TLS1_2` (deny)
   - storage public network access must not be `Enabled` (warn)
@@ -107,7 +109,7 @@ The values come from Microsoft's "Naming rules and restrictions for Azure resour
 ## Files touched
 
 - **Backend:**
-  - `backend/app/guardrails/{__init__,findings,naming,tags,conftest,checkov,trivy,run}.py`
+  - `backend/app/guardrails/{__init__,findings,naming,tags,scanners,run}.py`
   - `backend/app/api/guardrails.py`
   - `backend/app/main.py`
   - `backend/app/model.py` (`required_tags`)
@@ -115,7 +117,7 @@ The values come from Microsoft's "Naming rules and restrictions for Azure resour
   - `backend/app/hcl/{generate,parse}.py` (tag merge)
   - `catalog/*.yaml` (`nameRules`, plus the `func` rule for web-site)
   - the schemas
-- **Policies:** `policies/conftest/*.rego` with `*_test.rego`, `policies/severity.yaml`, `policies/README.md`
+- **Policies:** `policies/conftest/*.rego` with `policy_test.rego`, `policies/scanners.yaml`, `policies/README.md`
 - **Backend tests:**
   - `backend/tests/guardrails/` and `backend/tests/api/test_guardrails.py`
   - fixtures under `backend/tests/fixtures/guardrails/{high,waived-medium,clean}/` (`project.json`, `plan.json`)
@@ -140,7 +142,7 @@ The values come from Microsoft's "Naming rules and restrictions for Azure resour
 | Generated names match the CAF pattern and each type's length and character limits       | `tests/guardrails/test_naming.py` checks every catalog entry against `naming-cases.json`, plus property-style cases (long workload, uppercase, symbols); `frontend/src/model/naming.test.ts` runs the same vectors |
 | UI: keyboard-only waive flow, and axe-core reports 0 violations                         | `e2e/m4.spec.ts`: run checks, waive a medium finding by keyboard, check that the status line and the waived list update, and run axe on the empty, findings, dialog and waived states                              |
 
-**Unit tests and stub scanners.** API and unit tests run against the stub scanners on `PATH`. Each stub replays recorded JSON chosen by a fixture marker, so `make check` needs no network and no real scanners.
+**Unit tests and stub scanners.** API and unit tests run against the stub scanners on `PATH`. Each stub replays the output recorded from the real tool for a fixture (`LOWDEVOPS_STUB_DIR`, default `clean`), so `make check` needs no network and no real scanners. The e2e API server uses the same stubs.
 
 **Real-scanner tests.** `tests/guardrails/test_real_scanners.py` runs the real Checkov, Trivy and Conftest on the three fixtures. It runs whenever the binaries are on `PATH`, which is the case in the dev container, so the dev-container CI job runs them. Where a binary is missing it is skipped with an explicit reason. `LOWDEVOPS_REQUIRE_SCANNERS=1`, set in the dev container image, turns that skip into a failure there.
 
@@ -156,7 +158,7 @@ The values come from Microsoft's "Naming rules and restrictions for Azure resour
 
 - **Hand-written plan fixtures may not match real `terraform show -json` output.** The real-scanner tests check them with real Checkov and Trivy in the dev container, and M5 replaces them with recorded plans.
 - **The scanners are slow** (Checkov takes 5–15 s), so checks run on request, never on every keystroke.
-- **Free Checkov reports no severity**, so `policies/severity.yaml` must map the checks that matter. Unmapped checks default to medium, which keeps them visible without blocking.
+- **Free Checkov reports no severity**, so `policies/scanners.yaml` sets one for every adopted check. Checks not listed are not run or are dropped, which is a deliberate choice: adopt more by adding lines.
 - **The tag merge changes generated HCL.** The snapshot and round-trip tests are updated in the same PR, and the parser change keeps round-trips exact.
 - **Scanner version drift between the dev container and CI.** Versions are already pinned in `.devcontainer/Dockerfile` (Checkov 3.3.29, Trivy 0.76.0, Conftest 0.71.1).
 
