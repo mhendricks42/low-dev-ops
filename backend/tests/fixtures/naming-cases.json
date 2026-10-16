@@ -1,0 +1,823 @@
+[
+  {
+    "id": "ca-standard",
+    "naming": {
+      "workload": "webapp",
+      "env": "dev",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "ca-webapp-dev-weu",
+    "entry": {
+      "module": "avm-res-app-containerapp",
+      "cafAbbreviation": "ca",
+      "nameRules": {
+        "min": 2,
+        "max": 32,
+        "chars": "a-z0-9-",
+        "lowercase": true
+      }
+    }
+  },
+  {
+    "id": "ca-long",
+    "naming": {
+      "workload": "inventory-management-platform-services",
+      "env": "production",
+      "region": "westeurope",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "ca-invento-production-westeurope",
+    "entry": {
+      "module": "avm-res-app-containerapp",
+      "cafAbbreviation": "ca",
+      "nameRules": {
+        "min": 2,
+        "max": 32,
+        "chars": "a-z0-9-",
+        "lowercase": true
+      }
+    }
+  },
+  {
+    "id": "ca-odd",
+    "naming": {
+      "workload": "Web_App.v2!",
+      "env": "DEV",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "ca-webappv2-dev-weu",
+    "entry": {
+      "module": "avm-res-app-containerapp",
+      "cafAbbreviation": "ca",
+      "nameRules": {
+        "min": 2,
+        "max": 32,
+        "chars": "a-z0-9-",
+        "lowercase": true
+      }
+    }
+  },
+  {
+    "id": "ca-compact",
+    "naming": {
+      "workload": "shop",
+      "env": "prd",
+      "region": "neu",
+      "pattern": "{type}{workload}{env}{region}"
+    },
+    "expected": "cashopprdneu",
+    "entry": {
+      "module": "avm-res-app-containerapp",
+      "cafAbbreviation": "ca",
+      "nameRules": {
+        "min": 2,
+        "max": 32,
+        "chars": "a-z0-9-",
+        "lowercase": true
+      }
+    }
+  },
+  {
+    "id": "cae-standard",
+    "naming": {
+      "workload": "webapp",
+      "env": "dev",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "cae-webapp-dev-weu",
+    "entry": {
+      "module": "avm-res-app-managedenvironment",
+      "cafAbbreviation": "cae",
+      "nameRules": {
+        "min": 2,
+        "max": 60,
+        "chars": "a-z0-9-",
+        "lowercase": true
+      }
+    }
+  },
+  {
+    "id": "cae-long",
+    "naming": {
+      "workload": "inventory-management-platform-services",
+      "env": "production",
+      "region": "westeurope",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "cae-inventory-management-platform-serv-production-westeurope",
+    "entry": {
+      "module": "avm-res-app-managedenvironment",
+      "cafAbbreviation": "cae",
+      "nameRules": {
+        "min": 2,
+        "max": 60,
+        "chars": "a-z0-9-",
+        "lowercase": true
+      }
+    }
+  },
+  {
+    "id": "cae-odd",
+    "naming": {
+      "workload": "Web_App.v2!",
+      "env": "DEV",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "cae-webappv2-dev-weu",
+    "entry": {
+      "module": "avm-res-app-managedenvironment",
+      "cafAbbreviation": "cae",
+      "nameRules": {
+        "min": 2,
+        "max": 60,
+        "chars": "a-z0-9-",
+        "lowercase": true
+      }
+    }
+  },
+  {
+    "id": "cae-compact",
+    "naming": {
+      "workload": "shop",
+      "env": "prd",
+      "region": "neu",
+      "pattern": "{type}{workload}{env}{region}"
+    },
+    "expected": "caeshopprdneu",
+    "entry": {
+      "module": "avm-res-app-managedenvironment",
+      "cafAbbreviation": "cae",
+      "nameRules": {
+        "min": 2,
+        "max": 60,
+        "chars": "a-z0-9-",
+        "lowercase": true
+      }
+    }
+  },
+  {
+    "id": "aks-standard",
+    "naming": {
+      "workload": "webapp",
+      "env": "dev",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "aks-webapp-dev-weu",
+    "entry": {
+      "module": "avm-res-containerservice-managedcluster",
+      "cafAbbreviation": "aks",
+      "nameRules": {
+        "min": 1,
+        "max": 63,
+        "chars": "a-zA-Z0-9_-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "aks-long",
+    "naming": {
+      "workload": "inventory-management-platform-services",
+      "env": "production",
+      "region": "westeurope",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "aks-inventory-management-platform-service-production-westeurope",
+    "entry": {
+      "module": "avm-res-containerservice-managedcluster",
+      "cafAbbreviation": "aks",
+      "nameRules": {
+        "min": 1,
+        "max": 63,
+        "chars": "a-zA-Z0-9_-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "aks-odd",
+    "naming": {
+      "workload": "Web_App.v2!",
+      "env": "DEV",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "aks-Web_Appv2-DEV-weu",
+    "entry": {
+      "module": "avm-res-containerservice-managedcluster",
+      "cafAbbreviation": "aks",
+      "nameRules": {
+        "min": 1,
+        "max": 63,
+        "chars": "a-zA-Z0-9_-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "aks-compact",
+    "naming": {
+      "workload": "shop",
+      "env": "prd",
+      "region": "neu",
+      "pattern": "{type}{workload}{env}{region}"
+    },
+    "expected": "aksshopprdneu",
+    "entry": {
+      "module": "avm-res-containerservice-managedcluster",
+      "cafAbbreviation": "aks",
+      "nameRules": {
+        "min": 1,
+        "max": 63,
+        "chars": "a-zA-Z0-9_-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "kv-standard",
+    "naming": {
+      "workload": "webapp",
+      "env": "dev",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "kv-webapp-dev-weu",
+    "entry": {
+      "module": "avm-res-keyvault-vault",
+      "cafAbbreviation": "kv",
+      "nameRules": {
+        "min": 3,
+        "max": 24,
+        "chars": "a-zA-Z0-9-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "kv-long",
+    "naming": {
+      "workload": "inventory-management-platform-services",
+      "env": "production",
+      "region": "westeurope",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "kv-production-westeurope",
+    "entry": {
+      "module": "avm-res-keyvault-vault",
+      "cafAbbreviation": "kv",
+      "nameRules": {
+        "min": 3,
+        "max": 24,
+        "chars": "a-zA-Z0-9-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "kv-odd",
+    "naming": {
+      "workload": "Web_App.v2!",
+      "env": "DEV",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "kv-WebAppv2-DEV-weu",
+    "entry": {
+      "module": "avm-res-keyvault-vault",
+      "cafAbbreviation": "kv",
+      "nameRules": {
+        "min": 3,
+        "max": 24,
+        "chars": "a-zA-Z0-9-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "kv-compact",
+    "naming": {
+      "workload": "shop",
+      "env": "prd",
+      "region": "neu",
+      "pattern": "{type}{workload}{env}{region}"
+    },
+    "expected": "kvshopprdneu",
+    "entry": {
+      "module": "avm-res-keyvault-vault",
+      "cafAbbreviation": "kv",
+      "nameRules": {
+        "min": 3,
+        "max": 24,
+        "chars": "a-zA-Z0-9-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "nsg-standard",
+    "naming": {
+      "workload": "webapp",
+      "env": "dev",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "nsg-webapp-dev-weu",
+    "entry": {
+      "module": "avm-res-network-networksecuritygroup",
+      "cafAbbreviation": "nsg",
+      "nameRules": {
+        "min": 1,
+        "max": 80,
+        "chars": "a-zA-Z0-9._-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "nsg-long",
+    "naming": {
+      "workload": "inventory-management-platform-services",
+      "env": "production",
+      "region": "westeurope",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "nsg-inventory-management-platform-services-production-westeurope",
+    "entry": {
+      "module": "avm-res-network-networksecuritygroup",
+      "cafAbbreviation": "nsg",
+      "nameRules": {
+        "min": 1,
+        "max": 80,
+        "chars": "a-zA-Z0-9._-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "nsg-odd",
+    "naming": {
+      "workload": "Web_App.v2!",
+      "env": "DEV",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "nsg-Web_App.v2-DEV-weu",
+    "entry": {
+      "module": "avm-res-network-networksecuritygroup",
+      "cafAbbreviation": "nsg",
+      "nameRules": {
+        "min": 1,
+        "max": 80,
+        "chars": "a-zA-Z0-9._-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "nsg-compact",
+    "naming": {
+      "workload": "shop",
+      "env": "prd",
+      "region": "neu",
+      "pattern": "{type}{workload}{env}{region}"
+    },
+    "expected": "nsgshopprdneu",
+    "entry": {
+      "module": "avm-res-network-networksecuritygroup",
+      "cafAbbreviation": "nsg",
+      "nameRules": {
+        "min": 1,
+        "max": 80,
+        "chars": "a-zA-Z0-9._-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "vnet-standard",
+    "naming": {
+      "workload": "webapp",
+      "env": "dev",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "vnet-webapp-dev-weu",
+    "entry": {
+      "module": "avm-res-network-virtualnetwork",
+      "cafAbbreviation": "vnet",
+      "nameRules": {
+        "min": 2,
+        "max": 64,
+        "chars": "a-zA-Z0-9._-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "vnet-long",
+    "naming": {
+      "workload": "inventory-management-platform-services",
+      "env": "production",
+      "region": "westeurope",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "vnet-inventory-management-platform-service-production-westeurope",
+    "entry": {
+      "module": "avm-res-network-virtualnetwork",
+      "cafAbbreviation": "vnet",
+      "nameRules": {
+        "min": 2,
+        "max": 64,
+        "chars": "a-zA-Z0-9._-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "vnet-odd",
+    "naming": {
+      "workload": "Web_App.v2!",
+      "env": "DEV",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "vnet-Web_App.v2-DEV-weu",
+    "entry": {
+      "module": "avm-res-network-virtualnetwork",
+      "cafAbbreviation": "vnet",
+      "nameRules": {
+        "min": 2,
+        "max": 64,
+        "chars": "a-zA-Z0-9._-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "vnet-compact",
+    "naming": {
+      "workload": "shop",
+      "env": "prd",
+      "region": "neu",
+      "pattern": "{type}{workload}{env}{region}"
+    },
+    "expected": "vnetshopprdneu",
+    "entry": {
+      "module": "avm-res-network-virtualnetwork",
+      "cafAbbreviation": "vnet",
+      "nameRules": {
+        "min": 2,
+        "max": 64,
+        "chars": "a-zA-Z0-9._-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "rg-standard",
+    "naming": {
+      "workload": "webapp",
+      "env": "dev",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "rg-webapp-dev-weu",
+    "entry": {
+      "module": "avm-res-resources-resourcegroup",
+      "cafAbbreviation": "rg",
+      "nameRules": {
+        "min": 1,
+        "max": 90,
+        "chars": "a-zA-Z0-9._()-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "rg-long",
+    "naming": {
+      "workload": "inventory-management-platform-services",
+      "env": "production",
+      "region": "westeurope",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "rg-inventory-management-platform-services-production-westeurope",
+    "entry": {
+      "module": "avm-res-resources-resourcegroup",
+      "cafAbbreviation": "rg",
+      "nameRules": {
+        "min": 1,
+        "max": 90,
+        "chars": "a-zA-Z0-9._()-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "rg-odd",
+    "naming": {
+      "workload": "Web_App.v2!",
+      "env": "DEV",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "rg-Web_App.v2-DEV-weu",
+    "entry": {
+      "module": "avm-res-resources-resourcegroup",
+      "cafAbbreviation": "rg",
+      "nameRules": {
+        "min": 1,
+        "max": 90,
+        "chars": "a-zA-Z0-9._()-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "rg-compact",
+    "naming": {
+      "workload": "shop",
+      "env": "prd",
+      "region": "neu",
+      "pattern": "{type}{workload}{env}{region}"
+    },
+    "expected": "rgshopprdneu",
+    "entry": {
+      "module": "avm-res-resources-resourcegroup",
+      "cafAbbreviation": "rg",
+      "nameRules": {
+        "min": 1,
+        "max": 90,
+        "chars": "a-zA-Z0-9._()-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "st-standard",
+    "naming": {
+      "workload": "webapp",
+      "env": "dev",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "stwebappdevweu",
+    "entry": {
+      "module": "avm-res-storage-storageaccount",
+      "cafAbbreviation": "st",
+      "nameRules": {
+        "min": 3,
+        "max": 24,
+        "chars": "a-z0-9",
+        "lowercase": true
+      }
+    }
+  },
+  {
+    "id": "st-long",
+    "naming": {
+      "workload": "inventory-management-platform-services",
+      "env": "production",
+      "region": "westeurope",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "stinproductionwesteurope",
+    "entry": {
+      "module": "avm-res-storage-storageaccount",
+      "cafAbbreviation": "st",
+      "nameRules": {
+        "min": 3,
+        "max": 24,
+        "chars": "a-z0-9",
+        "lowercase": true
+      }
+    }
+  },
+  {
+    "id": "st-odd",
+    "naming": {
+      "workload": "Web_App.v2!",
+      "env": "DEV",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "stwebappv2devweu",
+    "entry": {
+      "module": "avm-res-storage-storageaccount",
+      "cafAbbreviation": "st",
+      "nameRules": {
+        "min": 3,
+        "max": 24,
+        "chars": "a-z0-9",
+        "lowercase": true
+      }
+    }
+  },
+  {
+    "id": "st-compact",
+    "naming": {
+      "workload": "shop",
+      "env": "prd",
+      "region": "neu",
+      "pattern": "{type}{workload}{env}{region}"
+    },
+    "expected": "stshopprdneu",
+    "entry": {
+      "module": "avm-res-storage-storageaccount",
+      "cafAbbreviation": "st",
+      "nameRules": {
+        "min": 3,
+        "max": 24,
+        "chars": "a-z0-9",
+        "lowercase": true
+      }
+    }
+  },
+  {
+    "id": "asp-standard",
+    "naming": {
+      "workload": "webapp",
+      "env": "dev",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "asp-webapp-dev-weu",
+    "entry": {
+      "module": "avm-res-web-serverfarm",
+      "cafAbbreviation": "asp",
+      "nameRules": {
+        "min": 1,
+        "max": 60,
+        "chars": "a-zA-Z0-9-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "asp-long",
+    "naming": {
+      "workload": "inventory-management-platform-services",
+      "env": "production",
+      "region": "westeurope",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "asp-inventory-management-platform-serv-production-westeurope",
+    "entry": {
+      "module": "avm-res-web-serverfarm",
+      "cafAbbreviation": "asp",
+      "nameRules": {
+        "min": 1,
+        "max": 60,
+        "chars": "a-zA-Z0-9-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "asp-odd",
+    "naming": {
+      "workload": "Web_App.v2!",
+      "env": "DEV",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "asp-WebAppv2-DEV-weu",
+    "entry": {
+      "module": "avm-res-web-serverfarm",
+      "cafAbbreviation": "asp",
+      "nameRules": {
+        "min": 1,
+        "max": 60,
+        "chars": "a-zA-Z0-9-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "asp-compact",
+    "naming": {
+      "workload": "shop",
+      "env": "prd",
+      "region": "neu",
+      "pattern": "{type}{workload}{env}{region}"
+    },
+    "expected": "aspshopprdneu",
+    "entry": {
+      "module": "avm-res-web-serverfarm",
+      "cafAbbreviation": "asp",
+      "nameRules": {
+        "min": 1,
+        "max": 60,
+        "chars": "a-zA-Z0-9-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "app-standard",
+    "naming": {
+      "workload": "webapp",
+      "env": "dev",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "app-webapp-dev-weu",
+    "entry": {
+      "module": "avm-res-web-site",
+      "cafAbbreviation": "app",
+      "nameRules": {
+        "min": 2,
+        "max": 60,
+        "chars": "a-zA-Z0-9-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "app-long",
+    "naming": {
+      "workload": "inventory-management-platform-services",
+      "env": "production",
+      "region": "westeurope",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "app-inventory-management-platform-serv-production-westeurope",
+    "entry": {
+      "module": "avm-res-web-site",
+      "cafAbbreviation": "app",
+      "nameRules": {
+        "min": 2,
+        "max": 60,
+        "chars": "a-zA-Z0-9-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "app-odd",
+    "naming": {
+      "workload": "Web_App.v2!",
+      "env": "DEV",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "app-WebAppv2-DEV-weu",
+    "entry": {
+      "module": "avm-res-web-site",
+      "cafAbbreviation": "app",
+      "nameRules": {
+        "min": 2,
+        "max": 60,
+        "chars": "a-zA-Z0-9-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "app-compact",
+    "naming": {
+      "workload": "shop",
+      "env": "prd",
+      "region": "neu",
+      "pattern": "{type}{workload}{env}{region}"
+    },
+    "expected": "appshopprdneu",
+    "entry": {
+      "module": "avm-res-web-site",
+      "cafAbbreviation": "app",
+      "nameRules": {
+        "min": 2,
+        "max": 60,
+        "chars": "a-zA-Z0-9-",
+        "lowercase": false
+      }
+    }
+  },
+  {
+    "id": "func-standard",
+    "kind": "functionapp",
+    "naming": {
+      "workload": "webapp",
+      "env": "dev",
+      "region": "weu",
+      "pattern": "{type}-{workload}-{env}-{region}"
+    },
+    "expected": "func-webapp-dev-weu",
+    "entry": {
+      "module": "avm-res-web-site",
+      "cafAbbreviation": "app",
+      "nameRules": {
+        "min": 2,
+        "max": 60,
+        "chars": "a-zA-Z0-9-",
+        "lowercase": false
+      }
+    }
+  }
+]

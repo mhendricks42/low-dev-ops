@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest'
+import type { CatalogEntry } from './catalog-entry'
 import { controlFor, newResource, nextId, refOptions } from './catalog'
 import { reducer } from './reducer'
 import { CATALOG, project, RG, VNET } from './testData'
@@ -61,4 +62,22 @@ test('a ref input never gets a literal, even with a null default from the catalo
     inputs: { ...VNET.inputs, parent_id: { tier: 'basic' as const, default: null as never } },
   }
   expect(newResource(entry, project(), 'vnet1').inputs).not.toHaveProperty('parent_id')
+})
+
+test('newResource names follow the type limits and the default kind (M4 naming)', () => {
+  const storage: CatalogEntry = {
+    ...RG,
+    module: 'avm-res-storage-storageaccount',
+    cafAbbreviation: 'st',
+    nameRules: { min: 3, max: 24, chars: 'a-z0-9', lowercase: true },
+  }
+  expect(newResource(storage, project(), 'st1').inputs?.name).toBe('stappdevweu')
+  const functions: CatalogEntry = {
+    ...RG,
+    module: 'avm-res-web-site',
+    cafAbbreviation: 'app',
+    nameRules: { min: 2, max: 60, chars: 'a-zA-Z0-9-' },
+    inputs: { ...RG.inputs, kind: { tier: 'basic', default: 'functionapp' as never } },
+  }
+  expect(newResource(functions, project(), 'app1').inputs?.name).toBe('func-app-dev-weu')
 })
