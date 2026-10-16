@@ -1,15 +1,47 @@
+@import './design-system/tokens.css';
+
 :root {
-  font-family: system-ui, sans-serif;
-  color: #1a1a1a;
-  background: #ffffff;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
 }
 
 body {
   margin: 0;
 }
 
+.app-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-header h1 {
+  font-size: var(--text-lg);
+  margin: 0;
+}
+
 main {
-  max-width: 40rem;
-  margin: 4rem auto;
-  padding: 0 1rem;
+  padding: var(--space-3) var(--space-4);
+}
+
+[role='tabpanel'] {
+  padding-block: var(--space-3);
+}
+
+.wizard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--space-4);
+  max-width: 72rem;
+}
+
+pre {
+  font-family: var(--mono);
+  background: var(--surface);
+  padding: var(--space-2);
+  overflow-x: auto;
 }

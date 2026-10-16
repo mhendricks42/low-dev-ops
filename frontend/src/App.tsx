@@ -1,19 +1,40 @@
-import { useEffect, useState } from 'react'
+import { Status, Tabs } from './design-system/components'
+import { ProjectProvider, useStore } from './model/store'
+import { Wizard } from './wizard/Wizard'
+
+const NAME = /^[a-z][a-z0-9-]{0,62}$/
+
+export function projectName(search: string): string {
+  const name = new URLSearchParams(search).get('project') ?? 'default'
+  return NAME.test(name) ? name : 'default'
+}
+
+function Shell() {
+  const { project, saveStatus } = useStore()
+  return (
+    <>
+      <header className="app-header">
+        <h1>LowDevOps: {project.meta.name}</h1>
+        <Status>{saveStatus}</Status>
+      </header>
+      <main>
+        <Tabs
+          label="Project views"
+          tabs={[
+            { id: 'wizard', label: 'Wizard', panel: <Wizard /> },
+            { id: 'canvas', label: 'Canvas', panel: <p>Canvas</p> },
+            { id: 'hcl', label: 'HCL', panel: <p>HCL</p> },
+          ]}
+        />
+      </main>
+    </>
+  )
+}
 
 export default function App() {
-  const [status, setStatus] = useState('checking…')
-
-  useEffect(() => {
-    fetch('/api/health')
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(res.statusText))))
-      .then((body: { status: string }) => setStatus(body.status))
-      .catch(() => setStatus('unreachable'))
-  }, [])
-
   return (
-    <main>
-      <h1>Hello, LowDevOps</h1>
-      <p role="status">API: {status}</p>
-    </main>
+    <ProjectProvider name={projectName(window.location.search)}>
+      <Shell />
+    </ProjectProvider>
   )
 }
