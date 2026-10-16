@@ -6,7 +6,9 @@
 - Either captured output, or a line callback for streamed logs (stderr merged into stdout).
 """
 
+import codecs
 import os
+import selectors
 import shutil
 import signal
 import subprocess
@@ -17,7 +19,6 @@ from contextlib import suppress
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
-from typing import IO
 
 # How long to wait for output still in the pipe after the tool exited.
 READER_GRACE_SECONDS = 2
@@ -46,28 +47,6 @@ def inherited_env(
     return {**env, **(extra or {})}
 
 
-def _read(process: subprocess.Popen[str], on_line: Callable[[str], None] | None) -> tuple[str, str]:
-    """Read the child's output to EOF without reaping it (reaping is the caller's job)."""
-    if on_line is not None and process.stdout is not None:
-        for line in process.stdout:
-            on_line(line.rstrip("\n"))
-        return "", ""
-    chunks: dict[str, str] = {}
-
-    def drain(name: str, stream: IO[str] | None) -> None:
-        chunks[name] = stream.read() if stream is not None else ""
-
-    readers = [
-        threading.Thread(target=drain, args=("out", process.stdout), daemon=True),
-        threading.Thread(target=drain, args=("err", process.stderr), daemon=True),
-    ]
-    for reader in readers:
-        reader.start()
-    for reader in readers:
-        reader.join()
-    return chunks.get("out", ""), chunks.get("err", "")
-
-
 def run(
     args: list[str],
     *,
@@ -88,8 +67,6 @@ def run(
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT if on_line else subprocess.PIPE,
-        text=True,
-        errors="replace",  # odd bytes in a tool's output never abort the run
         start_new_session=True,
     )
     # The child is reaped only at the very end (under `lock`), so until then its pid and
@@ -97,10 +74,6 @@ def run(
     lock = threading.Lock()
     reaped = False
     timed_out = threading.Event()
-    listening = threading.Event()
-    listening.set()
-    outcome: list[tuple[str, str]] = []
-    failure: list[BaseException] = []
 
     def exited() -> bool:
         flags = os.WEXITED | os.WNOHANG | os.WNOWAIT  # look, don't reap
@@ -115,47 +88,63 @@ def run(
             with suppress(ProcessLookupError):
                 os.killpg(process.pid, signal.SIGKILL)
 
-    def emit(line: str) -> None:
-        if listening.is_set() and on_line is not None:  # nothing reaches it after run() returns
-            on_line(line)
-
-    def read() -> None:
-        try:
-            outcome.append(_read(process, emit if on_line else None))
-        except BaseException as e:  # handed to the caller below
-            failure.append(e)
-        finally:
-            for stream in (process.stdout, process.stderr):
-                if stream is not None:
-                    with suppress(OSError):
-                        stream.close()
-
-    # A separate reader, so a process that escaped the group (setsid) and keeps the output
-    # pipe open can't hold the run open: we stop waiting for it once the tool has exited.
-    reader = threading.Thread(target=read, daemon=True)
-    reader.start()
+    # Output is read here, on the caller's thread, from non-blocking selects: no reader
+    # threads to leak, and no callback can run after run() returns.
+    names = {}
+    for name, stream in (("out", process.stdout), ("err", process.stderr)):
+        if stream is not None:
+            names[stream.fileno()] = name
+    decoders = {
+        name: codecs.getincrementaldecoder("utf-8")(errors="replace") for name in names.values()
+    }
+    chunks: dict[str, list[str]] = {name: [] for name in names.values()}
+    pending = ""
+    selector = selectors.DefaultSelector()
+    for fd in names:
+        selector.register(fd, selectors.EVENT_READ)
     timer = threading.Timer(timeout, partial(kill_group, on_timeout=True))
     timer.daemon = True
     timer.start()
     try:
-        while reader.is_alive() and not exited():
-            reader.join(0.02)
-        if failure:  # a callback or read error: leave no tool running
-            kill_group()
+        grace_ends: float | None = None
+        while selector.get_map():
+            if grace_ends is None and exited():
+                kill_group()  # whatever the tool left behind in its group
+                grace_ends = time.monotonic() + READER_GRACE_SECONDS
+            if grace_ends is not None and time.monotonic() > grace_ends:
+                break  # a detached process still holds the pipe: stop listening to it
+            for key, _ in selector.select(0.05):
+                data = os.read(key.fd, 65536)
+                name = names[key.fd]
+                if not data:
+                    selector.unregister(key.fd)
+                text = decoders[name].decode(data, final=not data)
+                if on_line is None:
+                    chunks[name].append(text)
+                    continue
+                pending += text
+                *lines, pending = pending.split("\n")
+                for line in lines:
+                    on_line(line.removesuffix("\r"))
+        if on_line is not None and pending:
+            on_line(pending.removesuffix("\r"))
         while not exited():  # the timer guarantees this ends
             time.sleep(0.02)
-        kill_group()  # whatever the tool left behind in its group
-        reader.join(READER_GRACE_SECONDS)
-    finally:
-        listening.clear()
+    finally:  # also on a callback error: leave no tool running
         timer.cancel()
+        timer.join()  # a timer already firing finishes before we reap
         kill_group()
+        selector.close()
+        for stream in (process.stdout, process.stderr):
+            if stream is not None:
+                stream.close()
         with lock:
             process.wait()
             reaped = True
-    if failure:
-        raise failure[0]
-    if timed_out.is_set() or not outcome:
+    if timed_out.is_set():
         raise ProcTimeout(f"{os.path.basename(tool)} took longer than {timeout:g} s")
-    stdout, stderr = outcome[0]
-    return Completed(process.returncode, stdout, stderr)
+
+    def joined(name: str) -> str:
+        return "".join(chunks.get(name, [])).replace("\r\n", "\n")
+
+    return Completed(process.returncode, joined("out"), joined("err"))
