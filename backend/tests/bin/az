@@ -4,7 +4,8 @@
 State lives in LOWDEVOPS_FAKE_AZ_STATE (a directory): each resource is a file, so a create makes a
 later show succeed. Every call is appended to <state>/calls.log as a JSON argv list.
 Switches (files in the state dir): `logged_out` makes every call fail like a missing `az login`;
-`container_403` makes the next container create fail with a 403 (role not yet propagated).
+`container_403` makes the next container create fail with a 403 (role not yet propagated);
+`name_taken` makes storage account create fail as if the global name were taken.
 """
 
 import json
@@ -14,6 +15,9 @@ from pathlib import Path
 
 SUB = "00000000-0000-0000-0000-000000000000"
 USER_ID = "11111111-2222-3333-4444-555555555555"
+# What `az storage account show` reports for an account created with the bootstrap's flags.
+HARDENED = {"allowSharedKeyAccess": False, "allowBlobPublicAccess": False,
+            "minimumTlsVersion": "TLS1_2", "enableHttpsTrafficOnly": True}
 
 
 def opt(args: list[str], *names: str) -> str:
@@ -62,10 +66,18 @@ def main(args: list[str]) -> int:
         name = opt(args, "--name", "-n")
         rg = opt(args, "--resource-group", "-g")
         account_id = f"/subscriptions/{SUB}/resourceGroups/{rg}/providers/Microsoft.Storage/storageAccounts/{name}"
-        return out({"name": name, "id": account_id}) if exists(f"st_{name}") else fail(f"The Resource 'Microsoft.Storage/storageAccounts/{name}' was not found (ResourceNotFound).", 3)
+        if not exists(f"st_{name}"):
+            return fail(f"The Resource 'Microsoft.Storage/storageAccounts/{name}' was not found (ResourceNotFound).", 3)
+        return out({"name": name, "id": account_id, **json.loads((state / f"st_{name}").read_text())})
     if words[:3] == ["storage", "account", "create"]:
         name = opt(args, "--name", "-n")
-        touch(f"st_{name}")
+        if exists("name_taken"):
+            return fail(f"The storage account named {name} is already taken. (StorageAccountAlreadyTaken)")
+        (state / f"st_{name}").write_text(json.dumps(HARDENED))
+        return out({"name": name})
+    if words[:3] == ["storage", "account", "update"]:
+        name = opt(args, "--name", "-n")
+        (state / f"st_{name}").write_text(json.dumps(HARDENED))
         return out({"name": name})
     if words[:4] == ["storage", "account", "blob-service-properties", "show"]:
         name = opt(args, "--account-name", "-n")

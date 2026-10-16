@@ -1,5 +1,6 @@
 """EC5: bootstrap issues the expected create commands, and a second run creates nothing."""
 
+import json
 import threading
 from pathlib import Path
 
@@ -210,5 +211,45 @@ def test_a_second_bootstrap_while_one_runs_is_409(
     first = client.post(f"/api/backends/{SUB}/bootstrap", json=body)
     second = client.post(f"/api/backends/{SUB}/bootstrap", json=body)
     release.set()
+    # Wait for the run, so its thread never outlives the fake (and never reaches a real az).
+    run = REGISTRY.get(first.json()["runId"])
+    assert run is not None and run.wait(20)
     assert (first.status_code, second.status_code) == (202, 409)
     assert second.json()["detail"]["runId"] == first.json()["runId"]
+
+
+def test_a_weakened_existing_account_is_hardened_again(fake_az: Path) -> None:
+    bootstrap.ensure_backend(SUB, "westeurope", say=lambda _: None)
+    weak = {"allowSharedKeyAccess": True, "allowBlobPublicAccess": True,
+            "minimumTlsVersion": "TLS1_0", "enableHttpsTrafficOnly": False}  # fmt: skip
+    (fake_az / f"st_{ACCOUNT}").write_text(json.dumps(weak))
+    (fake_az / "calls.log").unlink()
+    lines: list[str] = []
+    bootstrap.ensure_backend(SUB, "westeurope", say=lines.append)
+    updates = [c for c in az_calls(fake_az) if c[:3] == ["storage", "account", "update"]]
+    assert len(updates) == 1
+    for flag in ("--allow-shared-key-access", "--allow-blob-public-access"):
+        assert updates[0][updates[0].index(flag) + 1] == "false"
+    assert updates[0][updates[0].index("--min-tls-version") + 1] == "TLS1_2"
+    assert any("re-applying" in line for line in lines)
+
+
+def test_a_taken_account_name_is_explained(fake_az: Path) -> None:
+    (fake_az / "name_taken").touch()
+    with pytest.raises(bootstrap.BootstrapError, match="already taken in another subscription"):
+        bootstrap.ensure_backend(SUB, "westeurope", say=lambda _: None)
+
+
+def test_subscription_ids_are_case_insensitive(fake_az: Path) -> None:
+    # One subscription, one backend, whatever the casing it was typed in.
+    upper = SUB.replace("0", "0").upper().replace("0000", "ABCD", 1)
+    lower = upper.lower()
+    body = {"location": "westeurope", "confirmSubscriptionId": upper}
+    response = client.post(f"/api/backends/{upper}/bootstrap", json=body)
+    run = REGISTRY.get(response.json()["runId"])
+    assert run is not None and run.wait(20) and run.status == "succeeded", (
+        run.lines if run else None
+    )
+    assert list(settings.load().backends) == [lower]
+    assert settings.load().backends[lower].storage_account == bootstrap.storage_account_name(lower)
+    assert client.get(f"/api/backends/{upper}").status_code == 200
