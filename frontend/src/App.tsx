@@ -24,7 +24,7 @@ function useApiHealth(): string {
 }
 
 function Shell() {
-  const { project, saveStatus, saveError, announcement, pending } = useStore()
+  const { project, saveStatus, saving, saveError, announcement, pending } = useStore()
   const health = useApiHealth()
   return (
     <>
@@ -33,6 +33,12 @@ function Shell() {
         <div className="app-status">
           <Status>API: {health}</Status>
           <Status busy={pending}>{saveStatus}</Status>
+          {/* Visual only: the live status above announces outcomes, not every save (#12). */}
+          {saving && (
+            <span className="app-saving" aria-hidden="true">
+              Saving…
+            </span>
+          )}
         </div>
       </header>
       <p role="status" className="ds-sr-only">
