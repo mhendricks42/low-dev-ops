@@ -58,7 +58,7 @@ def _run(args: list[str], cwd: Path, ok_codes: set[int]) -> Any:
 
 def failed(tool: str, error: ScannerError) -> Finding:
     return Finding(
-        id="LDO_SCANNER_FAILED",
+        id=f"LDO_SCANNER_FAILED:{tool}",
         resource="project",
         severity="high",
         source="guardrails",

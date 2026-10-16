@@ -31,10 +31,19 @@ class Report:
         return all(f.waivable for f in self.findings)
 
 
+def _distinct(findings: list[Finding]) -> list[Finding]:
+    # A waiver names (finding id, resource), so keep one finding per pair: the most severe. A
+    # scanner can hit the same check on several parts of one module (e.g. two NSG rules).
+    kept: dict[tuple[str, str], Finding] = {}
+    for f in sorted(findings, key=Finding.sort_key):
+        kept.setdefault((f.id, f.resource), f)
+    return list(kept.values())
+
+
 def apply_waivers(findings: list[Finding], waivers: list[Waiver]) -> Report:
     report = Report()
     used: set[int] = set()
-    for f in sorted(findings, key=Finding.sort_key):
+    for f in sorted(_distinct(findings), key=Finding.sort_key):
         match = next(
             (i for i, w in enumerate(waivers) if (w.finding_id, w.resource) == (f.id, f.resource)),
             None,

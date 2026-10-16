@@ -55,6 +55,6 @@ def test_real_scanners_match_the_recorded_fixture(fixture: str) -> None:
     project, plan = load_guardrail_fixture(fixture)
     report = check(project, CATALOG, plan)
     assert {f.id for f in report.findings} == EXPECTED[fixture]
-    assert all(f.id != "LDO_SCANNER_FAILED" for f in report.findings)
+    assert not any(f.id.startswith("LDO_SCANNER_FAILED") for f in report.findings)
     if fixture == "waived-medium":
         assert {f.id for f, _ in report.waived} == {"LDO_ST_PUBLIC", "CKV_AZURE_59"}

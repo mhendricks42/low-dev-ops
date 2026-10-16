@@ -12,7 +12,7 @@ def check_tags(project: Project) -> list[Finding]:
         effective = {**project.tags, **(own if isinstance(own, dict) else {})}
         found += [
             Finding(
-                id="LDO_TAG_MISSING",
+                id=f"LDO_TAG_MISSING:{key}",  # one finding (and waiver) per tag
                 resource=r.id,
                 severity="medium",
                 source="tags",
