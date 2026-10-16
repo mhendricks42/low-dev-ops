@@ -6,7 +6,7 @@ One Conventional Commit per task. Exit criteria (EC) come from [ROADMAP](../../R
 - [x] T2 `feat(backend)`: `/api/projects` list/get/put, workspace safety (name pattern, staying inside the workspace, atomic writes, `meta.name` must match). Tests include path-escape attempts.
 - [x] T3 `chore(frontend)`: add the dependencies, generated model types, and a `types:check` drift check in lint.
 - [x] T4 `feat(frontend)`: reducer, store, API client and pure catalog helpers, with unit tests (`parent_id` sets `parent`, control inference, allowed refs).
-- [ ] T5 `feat(frontend)`: design-system tokens and accessible components, with unit tests for labels and errors.
+- [x] T5 `feat(frontend)`: design-system tokens and accessible components, with unit tests for labels and errors.
 - [ ] T6 `feat(frontend)`: app shell (tabs, status) and the wizard (add and edit, More options, ref selects, custom HCL read-only).
 - [ ] T7 `feat(frontend)`: Monaco HCL editor with save, inline error, unsaved-edits guard and discard.
 - [ ] T8 `feat(frontend)`: React Flow canvas (nesting, edges, allowed connections, layout) and the keyboard list view.
