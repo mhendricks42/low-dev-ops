@@ -135,3 +135,26 @@ pre {
   overflow-x: auto;
   max-width: 100%;
 }
+
+/* M5 run log: scrolls inside its own focusable region, so long logs never stretch the page. */
+.run-log {
+  max-height: 24rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space-2);
+}
+
+.run-log pre {
+  margin: 0;
+  font-family: var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.run [data-action='delete'] td,
+.run [data-action='replace'] td {
+  color: var(--danger);
+  font-weight: 600;
+}

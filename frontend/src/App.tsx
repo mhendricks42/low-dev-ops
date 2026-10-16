@@ -4,6 +4,7 @@ import { Alert, Status, Tabs } from './design-system/components'
 import { ProjectProvider, useStore } from './model/store'
 import { Canvas } from './canvas/Canvas'
 import { HclView } from './editor/HclView'
+import { Run } from './run/Run'
 import { Wizard } from './wizard/Wizard'
 
 const NAME = /^[a-z][a-z0-9-]{0,62}$/
@@ -50,6 +51,7 @@ function Shell() {
             { id: 'canvas', label: 'Canvas', panel: <Canvas /> },
             { id: 'hcl', label: 'HCL', panel: <HclView /> },
             { id: 'checks', label: 'Checks', panel: <Checks /> },
+            { id: 'run', label: 'Run', panel: <Run /> },
           ]}
         />
       </main>

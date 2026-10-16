@@ -1,6 +1,7 @@
 import type { CheckReport } from './checks/types'
 import type { CatalogEntry } from './model/catalog-entry'
 import type { Project } from './model/project'
+import type { Account, Backend, Current } from './run/types'
 
 export class ApiError extends Error {
   readonly status: number
@@ -45,6 +46,34 @@ export const api = {
     call<{ hcl: string }>('POST', '/api/hcl/generate', { project }).then((d) => d.hcl),
   check: (project: Project) =>
     call<CheckReport>('POST', '/api/guardrails/check', { project, plan: null }),
+  account: () => call<Account>('GET', '/api/azure/account'),
+  // null when no backend is recorded for the subscription yet (404).
+  backend: (subscriptionId: string) =>
+    call<Backend>('GET', `/api/backends/${encodeURIComponent(subscriptionId)}`).catch(
+      (e: unknown) => {
+        if (e instanceof ApiError && e.status === 404) return null
+        throw e
+      },
+    ),
+  bootstrap: (subscriptionId: string, location: string) =>
+    call<{ runId: string }>(
+      'POST',
+      `/api/backends/${encodeURIComponent(subscriptionId)}/bootstrap`,
+      { location, confirmSubscriptionId: subscriptionId },
+    ).then((d) => d.runId),
+  currentRun: (name: string) =>
+    call<Current>('GET', `/api/projects/${encodeURIComponent(name)}/runs/current`),
+  plan: (name: string, subscriptionId: string) =>
+    call<{ runId: string }>('POST', `/api/projects/${encodeURIComponent(name)}/runs/plan`, {
+      subscriptionId,
+    }).then((d) => d.runId),
+  apply: (name: string, planSha256: string, confirmName: string, confirmDestroy: boolean) =>
+    call<{ runId: string }>('POST', `/api/projects/${encodeURIComponent(name)}/runs/apply`, {
+      planSha256,
+      confirmName,
+      confirmDestroy,
+    }).then((d) => d.runId),
+  logUrl: (runId: string) => `/api/runs/${encodeURIComponent(runId)}/log`,
   parse: (hcl: string, previous: Project) =>
     call<{ project: Project }>('POST', '/api/hcl/parse', { hcl, previous }).then((d) => d.project),
 }
