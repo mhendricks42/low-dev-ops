@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=catalog.schema.json
+schemaVersion: 1
+module: avm-res-web-serverfarm
+version: 2.0.8
+title: App Service plan
+category: compute
+cafAbbreviation: asp
+inputs:
+  name: { tier: basic, fill: name, description: "App Service plan name." }
+  location: { tier: basic, fill: location, description: "Azure region." }
+  parent_id: { tier: basic, description: "Resource group that holds the plan." }
+  os_type: { tier: basic, default: Linux, description: "Linux, Windows or WindowsContainer." }
+  sku_name: { tier: basic, default: P0v3, description: "Plan size, such as B1, P0v3 or EP1 for Functions Premium." }
+  worker_count: { tier: advanced, description: "Number of instances. Defaults to 3 for zone balancing." }
+  zone_balancing_enabled: { tier: advanced, description: "Spread instances across availability zones." }
+  per_site_scaling_enabled: { tier: advanced, description: "Scale each app independently." }
+  role_assignments: { tier: advanced, description: "RBAC role assignments on the plan." }
+  tags: { tier: advanced, description: "Tags applied to the plan." }
+  lock: { tier: advanced, description: "Management lock: CanNotDelete or ReadOnly." }
+  enable_telemetry: { tier: hidden, default: false }
+refs:
+  - { input: parent_id, from: avm-res-resources-resourcegroup, output: resource_id }
+outputs: [name, resource_id]
+example: { name: asp-lowdevops-ex }
