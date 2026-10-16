@@ -4,12 +4,13 @@ import os
 import tempfile
 import threading
 import time
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app import azure, settings
+from app import azure, proc, settings
 from app.main import app
 from tests.conftest import az_calls
 
@@ -139,3 +140,23 @@ def test_a_failed_settings_write_leaves_no_temp_file(
     with pytest.raises(OSError, match="disk full"):
         settings.save(settings.Settings())
     assert list(tmp_path.iterdir()) == []
+
+
+def test_az_runs_with_the_credential_free_env_in_the_private_workdir(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name in ("AZURE_CLIENT_SECRET", "ARM_SUBSCRIPTION_ID", "ARM_USE_CLI"):
+        monkeypatch.setenv(name, "leak")
+    seen: dict[str, object] = {}
+
+    def fake_run(args: list[str], **kwargs: object) -> proc.Completed:
+        seen.update(kwargs, args=args)
+        return proc.Completed(0, "{}", "")
+
+    monkeypatch.setattr(proc, "run", fake_run)
+    azure.az(["account", "show"])
+    env = seen["env"]
+    assert isinstance(env, Mapping)
+    assert "AZURE_CLIENT_SECRET" not in env and "ARM_SUBSCRIPTION_ID" not in env
+    assert env["ARM_USE_CLI"] == "true"
+    assert seen["cwd"] == azure.private_workdir()
