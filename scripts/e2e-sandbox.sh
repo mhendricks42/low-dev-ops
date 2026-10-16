@@ -17,21 +17,43 @@ suffix=$(python3 -c 'import secrets, string; print("".join(secrets.choice(string
 name="sandbox-$suffix"
 workspace=$(mktemp -d "${TMPDIR:-/tmp}/lowdevops-sandbox-XXXXXX")
 api_pid=""
+backend=""
 
 step() { printf '\n==> %s\n' "$*"; }
 json() { python3 -c "import json, sys; print(eval(sys.argv[1], {}, {'d': json.load(sys.stdin)}))" "$1"; }
 
 cleanup() {
   status=$?
+  # An app run (e.g. an apply after Ctrl-C) is in its own session: wait until none is running,
+  # or the destroy below would fail on the state lock and miss what the apply creates.
+  if [ -n "$api_pid" ] && kill -0 "$api_pid" 2>/dev/null; then
+    while curl -sf "$api/api/projects/$name/runs/current" 2>/dev/null |
+      python3 -c 'import json, sys; r = json.load(sys.stdin)["run"]; sys.exit(0 if r and r["status"] == "running" else 1)'; do
+      echo "Waiting for the app's current run to finish before cleaning up…"
+      sleep 5
+    done
+    kill "$api_pid" 2>/dev/null || true
+    wait "$api_pid" 2>/dev/null || true
+  fi
   if [ -d "$workspace/$name/.terraform" ]; then
     step "Cleanup: terraform destroy in $workspace/$name (outside the app: destroy-all is out of scope)"
-    (cd "$workspace/$name" && ARM_USE_CLI=true ARM_SUBSCRIPTION_ID="$sub" TF_IN_AUTOMATION=1 \
+    # A clean environment, like the app's: only your az login, never ARM_CLIENT_*, TF_VAR_* etc.
+    # (LOWDEVOPS_FAKE_TF_STATE only matters for a dry run against backend/tests/bin.)
+    (cd "$workspace/$name" && env -i PATH="$PATH" HOME="$HOME" \
+      ${AZURE_CONFIG_DIR:+AZURE_CONFIG_DIR="$AZURE_CONFIG_DIR"} \
+      ${LOWDEVOPS_FAKE_TF_STATE:+LOWDEVOPS_FAKE_TF_STATE="$LOWDEVOPS_FAKE_TF_STATE"} \
+      ARM_USE_CLI=true ARM_SUBSCRIPTION_ID="$sub" TF_IN_AUTOMATION=1 \
       terraform destroy -input=false -no-color -auto-approve) || {
       echo "!! destroy failed: remove resource group rg-$suffix-dev-weu by hand" >&2
       status=1
     }
   fi
-  [ -n "$api_pid" ] && kill "$api_pid" 2>/dev/null || true
+  if [ -n "$backend" ]; then
+    step "Left in place on purpose: the shared state backend ($backend, resource group rg-lowdevops-state)"
+    echo "It holds the state blob $name.tfstate. Every project in subscription $sub shares it."
+    echo "To remove the blob: az storage blob delete --auth-mode login --account-name ${backend%%/*} \\"
+    echo "  --container-name ${backend##*/} --name $name.tfstate --subscription $sub"
+  fi
   rm -rf "$workspace"
   exit "$status"
 }
@@ -77,7 +99,8 @@ else
     "$api/api/backends/$sub/bootstrap" | json 'd["runId"]')
   follow "$run"
 fi
-curl -sSf "$api/api/backends/$sub" | json '"%s/%s" % (d["storageAccount"], d["container"])'
+backend=$(curl -sSf "$api/api/backends/$sub" | json '"%s/%s" % (d["storageAccount"], d["container"])')
+echo "$backend"
 
 step "Planning"
 run=$(curl -sS --fail-with-body -X POST -H 'Content-Type: application/json' --data "{\"subscriptionId\": \"$sub\"}" \
