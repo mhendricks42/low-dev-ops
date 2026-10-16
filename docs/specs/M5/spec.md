@@ -113,7 +113,7 @@ Then it runs `terraform apply -input=false -no-color plan.tfplan`, only ever wit
 **Read endpoints:**
 
 - `GET /api/projects/{name}/runs/current` returns the current run and the plan record if there is one.
-- `GET /api/projects/{name}/runs/{runId}/log` is a **Server-Sent Events** stream:
+- `GET /api/runs/{runId}` returns a run's status, and `GET /api/runs/{runId}/log` is its **Server-Sent Events** stream (run ids are random, and bootstrap runs use the same routes):
   - It sends the lines so far, then new lines as they arrive (`event: line`).
   - It ends with `event: exit`, `data: {"exitCode": n, "status": "..."}`, then closes. This is the exit criterion: "the log stream ends with the exit code".
   - SSE is a plain GET, so it still goes through the Host guard.
