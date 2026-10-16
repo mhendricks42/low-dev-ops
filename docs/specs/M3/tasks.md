@@ -3,7 +3,7 @@
 One Conventional Commit per task. Exit criteria (EC) come from [ROADMAP](../../ROADMAP.md#m3--gui-views-wizard-canvas-hcl-editor-week-23).
 
 - [x] T1 `feat(backend)`: `/api/catalog`, `/api/hcl/generate` and `/api/hcl/parse` (422 with the line number), with tests.
-- [ ] T2 `feat(backend)`: `/api/projects` list/get/put, workspace safety (name pattern, staying inside the workspace, atomic writes, `meta.name` must match). Tests include path-escape attempts.
+- [x] T2 `feat(backend)`: `/api/projects` list/get/put, workspace safety (name pattern, staying inside the workspace, atomic writes, `meta.name` must match). Tests include path-escape attempts.
 - [ ] T3 `chore(frontend)`: add the dependencies, generated model types, and a `types:check` drift check in lint.
 - [ ] T4 `feat(frontend)`: reducer, store, API client and pure catalog helpers, with unit tests (`parent_id` sets `parent`, control inference, allowed refs).
 - [ ] T5 `feat(frontend)`: design-system tokens and accessible components, with unit tests for labels and errors.
