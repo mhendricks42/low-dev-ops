@@ -11,10 +11,12 @@ import shutil
 import signal
 import subprocess
 import threading
+import time
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
+from typing import IO
 
 
 class ProcError(Exception):
@@ -40,9 +42,26 @@ def inherited_env(
     return {**env, **(extra or {})}
 
 
-def _kill_group(process: subprocess.Popen[str]) -> None:
-    with suppress(ProcessLookupError):  # the whole group may have just exited
-        os.killpg(process.pid, signal.SIGKILL)
+def _read(process: subprocess.Popen[str], on_line: Callable[[str], None] | None) -> tuple[str, str]:
+    """Read the child's output to EOF without reaping it (reaping is the caller's job)."""
+    if on_line is not None and process.stdout is not None:
+        for line in process.stdout:
+            on_line(line.rstrip("\n"))
+        return "", ""
+    chunks: dict[str, str] = {}
+
+    def drain(name: str, stream: IO[str] | None) -> None:
+        chunks[name] = stream.read() if stream is not None else ""
+
+    readers = [
+        threading.Thread(target=drain, args=("out", process.stdout), daemon=True),
+        threading.Thread(target=drain, args=("err", process.stderr), daemon=True),
+    ]
+    for reader in readers:
+        reader.start()
+    for reader in readers:
+        reader.join()
+    return chunks.get("out", ""), chunks.get("err", "")
 
 
 def run(
@@ -50,43 +69,57 @@ def run(
     *,
     cwd: Path,
     timeout: float,
-    env: Mapping[str, str] | None = None,
+    env: Mapping[str, str],
     on_line: Callable[[str], None] | None = None,
 ) -> Completed:
+    """`env` is required: nothing reaches a child unless the caller passed it on purpose."""
     tool = args[0]
     binary = shutil.which(tool)
     if binary is None:
         raise ProcError(f"{tool} is not installed")
-    timed_out = threading.Event()
     with (
         subprocess.Popen(  # noqa: S603 - fixed argument list, no shell
             [binary, *args[1:]],
             cwd=cwd,
-            env=dict(env) if env is not None else None,
+            env=dict(env),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT if on_line else subprocess.PIPE,
             text=True,
+            errors="replace",  # odd bytes in a tool's output never abort the run
             start_new_session=True,
         ) as process
     ):
+        # Every reap goes through `reaped` + poll(), so the timer can never signal a pid that
+        # was already reaped (and may now belong to someone else).
+        reaped = threading.Lock()
+        timed_out = threading.Event()
+
+        def kill() -> None:
+            with reaped:
+                if process.poll() is None:
+                    with suppress(ProcessLookupError):  # the group may have just exited
+                        os.killpg(process.pid, signal.SIGKILL)
 
         def expire() -> None:
             timed_out.set()
-            _kill_group(process)
+            kill()
 
         timer = threading.Timer(timeout, expire)
         timer.daemon = True
         timer.start()
+        finished = False
         try:
-            if on_line is not None and process.stdout is not None:
-                for line in process.stdout:
-                    on_line(line.rstrip("\n"))
-                process.wait()
-                stdout, stderr = "", ""
-            else:
-                stdout, stderr = process.communicate()
+            stdout, stderr = _read(process, on_line)
+            finished = True
         finally:
+            if not finished:  # a callback or read error: leave no tool running
+                kill()
+            while True:
+                with reaped:
+                    if process.poll() is not None:
+                        break
+                time.sleep(0.02)
             timer.cancel()
     if timed_out.is_set():
         raise ProcTimeout(f"{os.path.basename(tool)} took longer than {timeout:g} s")

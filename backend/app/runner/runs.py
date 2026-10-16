@@ -17,6 +17,8 @@ from typing import Literal
 from app import proc
 
 Status = Literal["running", "succeeded", "failed"]
+MAX_LINES = 20_000
+TRUNCATED = "[… more output is in run.log in the project folder]"
 
 
 def _now() -> str:
@@ -38,7 +40,11 @@ class Run:
 
     def append(self, line: str) -> None:
         with self._changed:
-            self.lines.append(line)
+            # Memory keeps the first MAX_LINES for the browser; run.log keeps every line.
+            if len(self.lines) < MAX_LINES:
+                self.lines.append(line)
+            elif self.lines[-1] != TRUNCATED:
+                self.lines.append(TRUNCATED)
             if self.log_file is not None:
                 with self.log_file.open("a") as f:
                     f.write(line + "\n")
@@ -105,6 +111,8 @@ class RunRegistry:
             if active is not None and active.status == "running":
                 raise RunBusy(active)
             run = Run(id=secrets.token_hex(8), key=key, kind=kind, log_file=log_file)
+            if active is not None:  # keep only the latest run per key (bounded memory)
+                self._runs.pop(active.id, None)
             self._active[key] = run
             self._runs[run.id] = run
         threading.Thread(target=self._execute, args=(run, work), daemon=True).start()
@@ -112,12 +120,15 @@ class RunRegistry:
 
     @staticmethod
     def _execute(run: Run, work: Callable[[Run], int]) -> None:
+        code = 1  # unless work returns: a run never stays "running" (and its key locked)
         try:
             code = work(run)
-        except Exception as e:
+        except Exception as e:  # any failure ends the run, with its message
             run.append(f"Error: {e}")
-            code = 1
-        run.finish(code)
+        except BaseException as e:  # a worker thread has no one to re-raise to
+            run.append(f"Error: interrupted ({type(e).__name__})")
+        finally:
+            run.finish(code)
 
     def get(self, run_id: str) -> Run | None:
         return self._runs.get(run_id)
@@ -134,7 +145,7 @@ class Step:
     args: list[str]
     cwd: Path
     timeout: float
-    env: Mapping[str, str] | None = None
+    env: Mapping[str, str]  # required: see app/proc.py
 
 
 def run_steps(run: Run, steps: list[Step]) -> int:
