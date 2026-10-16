@@ -1,0 +1,13 @@
+schemaVersion: 1
+module: avm-res-resources-resourcegroup
+version: 0.4.0
+title: Resource group
+category: foundation
+cafAbbreviation: rg
+inputs:
+  name: { tier: basic, fill: name }
+  location: { tier: basic, fill: location }
+  tags: { tier: advanced }
+  enable_telemetry: { tier: hidden, default: false }
+outputs: [name, resource_id]
+example: { colour: blue }
