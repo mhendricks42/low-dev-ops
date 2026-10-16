@@ -43,7 +43,9 @@ export function suggestedName(entry: CatalogEntry, p: Project): string {
 
 export function newResource(entry: CatalogEntry, p: Project, id: string): Resource {
   const inputs: Record<string, unknown> = {}
+  const refInputs = new Set((entry.refs ?? []).map((r) => r.input))
   for (const [name, spec] of Object.entries(entry.inputs)) {
+    if (refInputs.has(name)) continue // set by a reference, never by a literal
     if (spec.fill === 'name') inputs[name] = suggestedName(entry, p)
     else if (spec.fill === 'location') inputs[name] = p.subscription.location
     else if (spec.fill === 'tenant_id') inputs[name] = p.subscription.tenantId
