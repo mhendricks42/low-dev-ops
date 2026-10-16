@@ -5,7 +5,7 @@ One Conventional Commit per task. Exit criteria (EC) come from [ROADMAP](../../R
 - [x] T1 `feat(backend)`: `Project.required_tags`, `CatalogEntry.name_rules`, and `nameRules` in every catalog entry. Regenerate the schemas and frontend types.
 - [x] T2 `feat`: CAF naming (`caf_name`, `func` for function apps) in the backend and frontend, with shared vectors (**EC4**).
 - [x] T3 `feat(backend)`: merge project tags into resource tags in the generator and parser, and update the snapshots.
-- [ ] T4 `feat(backend)`: findings, naming and tag checks, and the waiver/report logic (`run.py`).
+- [x] T4 `feat(backend)`: findings, naming and tag checks, and the waiver/report logic (`run.py`).
 - [ ] T5 `feat(backend)`: scanner adapters (Conftest, Checkov, Trivy), fail-closed handling, stub binaries, starter Rego policies and `severity.yaml`.
 - [ ] T6 `feat(backend)`: `POST /api/guardrails/check` and the fixtures `high`, `waived-medium` and `clean` (**EC1–EC3**).
 - [ ] T7 `test(backend)`: real-scanner and `conftest verify` tests; set `LOWDEVOPS_REQUIRE_SCANNERS` in the dev container.
