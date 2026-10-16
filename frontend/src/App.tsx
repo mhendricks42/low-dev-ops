@@ -1,5 +1,6 @@
 import { Status, Tabs } from './design-system/components'
 import { ProjectProvider, useStore } from './model/store'
+import { HclView } from './editor/HclView'
 import { Wizard } from './wizard/Wizard'
 
 const NAME = /^[a-z][a-z0-9-]{0,62}$/
@@ -23,7 +24,7 @@ function Shell() {
           tabs={[
             { id: 'wizard', label: 'Wizard', panel: <Wizard /> },
             { id: 'canvas', label: 'Canvas', panel: <p>Canvas</p> },
-            { id: 'hcl', label: 'HCL', panel: <p>HCL</p> },
+            { id: 'hcl', label: 'HCL', panel: <HclView /> },
           ]}
         />
       </main>
