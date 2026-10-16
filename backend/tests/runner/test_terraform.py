@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from app import azure
 from app.hcl.generate import generate
 from app.model import Project
 from app.runner import terraform
@@ -20,6 +21,7 @@ def test_plan_runs_terraform_in_the_project_with_the_backend_and_records_the_pla
     project: Path, fake_tf: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("ARM_CLIENT_SECRET", "leak")
+    monkeypatch.setenv("AZURE_CLIENT_SECRET", "leak")
     monkeypatch.setenv("TF_VAR_admin_password", "leak")
     monkeypatch.setenv("ARM_SUBSCRIPTION_ID", "ffffffff-0000-0000-0000-000000000000")
     monkeypatch.setenv("TF_CLI_ARGS_plan", "-var=admin_password=leak")
@@ -44,12 +46,16 @@ def test_plan_runs_terraform_in_the_project_with_the_backend_and_records_the_pla
     ]  # fmt: skip
     for call in calls:
         assert call["cwd"] == str(project)
-        assert call["env"] == {
+        env = call["env"]  # every ARM_*, TF_* and AZURE_* variable terraform saw
+        assert {k: v for k, v in env.items() if k.startswith(("ARM_", "TF_"))} == {
             "ARM_USE_CLI": "true",
             "ARM_SUBSCRIPTION_ID": SUB,
             "TF_IN_AUTOMATION": "1",
             "TF_INPUT": "0",
         }
+        # Harmless az settings (AZURE_CONFIG_DIR, AZURE_EXTENSION_DIR) may pass; credentials never.
+        azure_vars = [k for k in env if k.startswith("AZURE_")]
+        assert not [k for k in azure_vars if k.startswith(azure.CREDENTIAL_PREFIXES)]
     model = (project / "project.json").read_bytes()
     assert (project / "main.tf").read_text() == generate(Project.model_validate_json(model))
     assert (project / "runtime.tf").read_text() == terraform.RUNTIME_TF
