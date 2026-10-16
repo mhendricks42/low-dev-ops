@@ -50,7 +50,8 @@ test('keyboard only: run checks and waive a medium finding', async ({ page }) =>
   })
 
   await tabTo(page, page.getByRole('tab', { name: 'Wizard' }))
-  await page.keyboard.press('End') // last tab: Checks
+  await page.keyboard.press('End') // last tab: Run (M5)
+  await page.keyboard.press('ArrowLeft') // Checks
   await expect(page.getByRole('tab', { name: 'Checks' })).toHaveAttribute('aria-selected', 'true')
   await expectNoViolations(page) // before any run
   const runButton = page.getByRole('button', { name: 'Run checks' })
@@ -126,6 +127,7 @@ test.describe('reflow at 320 CSS pixels (WCAG 1.4.10)', () => {
     await setup(page)
     await tabTo(page, page.getByRole('tab', { name: 'Wizard' }))
     await page.keyboard.press('End')
+    await page.keyboard.press('ArrowLeft') // Checks, left of Run
     await tabTo(page, page.getByRole('button', { name: 'Run checks' }))
     await page.keyboard.press('Enter')
     const waive = page.getByRole('button', { name: 'Waive LDO_ST_PUBLIC on st1' })

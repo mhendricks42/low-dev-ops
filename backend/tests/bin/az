@@ -5,7 +5,8 @@ State lives in LOWDEVOPS_FAKE_AZ_STATE (a directory): each resource is a file, s
 later show succeed. Every call is appended to <state>/calls.log as a JSON argv list.
 Switches (files in the state dir): `logged_out` makes every call fail like a missing `az login`;
 `container_403` makes the next container create fail with a 403 (role not yet propagated);
-`name_taken` makes storage account create fail as if the global name were taken.
+`name_taken` makes storage account create fail as if the global name were taken; `no_access`
+makes `account show --subscription` fail as if the signed-in user could not use it.
 """
 
 import json
@@ -49,6 +50,8 @@ def main(args: list[str]) -> int:
     touch = lambda key: (state / key).write_text("{}")  # noqa: E731
 
     if words[:2] == ["account", "show"]:
+        if "--subscription" in args and exists("no_access"):
+            return fail(f"Subscription '{opt(args, '--subscription')}' not found. Check the spelling and casing and try again.")
         return out({
             "id": SUB, "name": "Sandbox", "tenantId": "tenant-1",
             "user": {"name": "sam@example.com", "type": "user"},

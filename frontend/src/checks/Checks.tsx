@@ -6,21 +6,11 @@ import { Alert, Button, Dialog, Status, TextField } from '../design-system/compo
 import type { Project, Waiver } from '../model/project'
 import { reducer, type Action } from '../model/reducer'
 import { useStore } from '../model/store'
+import { statusText } from './status'
 import type { CheckReport, Finding } from './types'
 
 const MIN_REASON = 10
 const label = (s: string) => s[0].toUpperCase() + s.slice(1)
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
-
-function statusText(report: CheckReport): string {
-  const blocking = report.findings.filter((f) => !f.waivable).length
-  if (report.blocked) return `Apply blocked: ${plural(blocking, 'high or critical finding')}`
-  const open = report.findings.length
-  const review = open ? `, with ${plural(open, 'finding')} to review` : ''
-  if (!report.plan_scanned)
-    return `No blocking findings${review}. Apply also needs a scanned plan, which comes with planning.`
-  return `Apply allowed${review}`
-}
 
 function WaiveDialog({
   finding,

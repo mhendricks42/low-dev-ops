@@ -112,33 +112,38 @@ def list_projects() -> dict[str, list[str]]:
     return {"names": sorted(names)}
 
 
-@router.get("/{name}")
-def get_project(name: Name) -> dict[str, Any]:
-    with _open_project_dir(name, create=False) as dir_fd:
-        try:
-            fd = os.open("project.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=dir_fd)
-        except FileNotFoundError as e:
-            raise HTTPException(404, detail={"message": f"no project '{name}'"}) from e
-        except OSError as e:
-            if e.errno == errno.ELOOP:
-                raise HTTPException(422, detail={"message": "project.json is a symlink"}) from e
-            raise
-        try:
-            # O_NONBLOCK so a FIFO cannot block the open; then only a small regular file is read.
-            info = os.fstat(fd)
-            if not stat.S_ISREG(info.st_mode):
-                raise HTTPException(422, detail={"message": "project.json is not a regular file"})
-            if info.st_size > MAX_BODY_BYTES:
-                raise HTTPException(422, detail={"message": "project.json is too large"})
-            data = os.read(fd, MAX_BODY_BYTES + 1)
-        finally:
-            os.close(fd)
+def _read_project(dir_fd: int, name: str) -> tuple[Project, bytes]:
+    """project.json of an opened project dir: the model and the exact bytes it was read from."""
+    try:
+        fd = os.open("project.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=dir_fd)
+    except FileNotFoundError as e:
+        raise HTTPException(404, detail={"message": f"no project '{name}'"}) from e
+    except OSError as e:
+        if e.errno == errno.ELOOP:
+            raise HTTPException(422, detail={"message": "project.json is a symlink"}) from e
+        raise
+    try:
+        # O_NONBLOCK so a FIFO cannot block the open; then only a small regular file is read.
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise HTTPException(422, detail={"message": "project.json is not a regular file"})
+        if info.st_size > MAX_BODY_BYTES:
+            raise HTTPException(422, detail={"message": "project.json is too large"})
+        data = os.read(fd, MAX_BODY_BYTES + 1)
+    finally:
+        os.close(fd)
     if len(data) > MAX_BODY_BYTES:  # grew after the fstat
         raise HTTPException(422, detail={"message": "project.json is too large"})
     try:
-        project = Project.model_validate_json(data)
+        return Project.model_validate_json(data), data
     except ValidationError as e:
         raise HTTPException(422, detail={"message": f"project.json is invalid: {e}"}) from e
+
+
+@router.get("/{name}")
+def get_project(name: Name) -> dict[str, Any]:
+    with _open_project_dir(name, create=False) as dir_fd:
+        project, _ = _read_project(dir_fd, name)
     return {"project": project.model_dump(mode="json", by_alias=True)}
 
 
